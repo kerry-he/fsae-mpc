@@ -1,6 +1,9 @@
-function [coeffs] = make_spline(P)
+function coeffs = make_spline(P)
 %MAKE_SPLINE Creates a cubic B-spline with Bezier segments
-%   Detailed explanation goes here
+%   INPUTS:
+%       P - Input points to fit a curve to (1D)
+%   OUTPUTS:
+%       coeffs - Coefficients of the spline [P0, P1, P2, P3]
 
     % Define known points
     N = length(P) - 1;
