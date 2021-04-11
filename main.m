@@ -21,18 +21,18 @@ kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl);
 % Define cost weights
 N_x = 5;
 N_u = 2;
-Q = [10; 50; 10; 0; 0];
-Q_terminal = [50; 250; 50; 0; 0];
+Q = [5; 50; 10; 0; 0];
+Q_terminal = Q * 10;
 R = [10, 10];
-R_soft = [750];
+R_soft = [1e8];
 
 % Define time horizon
 N_steps = 40;
-dt = 0.1;
+dt = 0.05;
 
 % Define constraints
-u_lb = [repmat([-10; -0.2], N_steps, 1); repmat([-1e10], N_steps, 1)];
-u_ub = [repmat([10; 0.2], N_steps, 1); repmat([1e10], N_steps, 1)];
+u_lb = [repmat([-10; -0.4], N_steps, 1); repmat([-1e10], N_steps, 1)];
+u_ub = [repmat([10; 0.4], N_steps, 1); repmat([1e10], N_steps, 1)];
 
 x_lb = repmat([-1.0], N_steps, 1);
 x_ub = repmat([1.0], N_steps, 1);
@@ -97,10 +97,10 @@ for i = 1:N_simulation
     u_opt_history(i, :) = [u_opt(1:2); u_opt(N_u*N_steps + 1)]';
     x_opt_history(i, :) = x_opt(1:5)';
      
-    
     if mod(i, 50) == 0
         display("Running iteration: " + i)
     end
+    
 end
 
 %% Plot results
@@ -112,27 +112,3 @@ hold on
 plot(x_int, y_int)
 plot(rx, ry, "*")
 plot(lx, ly, "*")
-%% Junk
-% x_int = interpolate_spline(0:1:L, x_spline, dl);
-% y_int = interpolate_spline(0:1:L, y_spline, dl);
-%
-% s = closest_point(-5, -5, x_spline, y_spline, dl, 0, 0.01);
-% 
-% x_c = interpolate_spline(s, x_spline, dl);
-% y_c = interpolate_spline(s, y_spline, dl);
-% 
-% kappa = interpolate_curvature(0:1:L, x_spline, y_spline, dl);
-% store = zeros(101, 25);
-% for i = 1:25
-%     % Define function to solve the root for
-%     x_d = @(t) -3*(1-t).^2*x_spline(i, 1) + 3*(3*t.^2 - 4*t + 1)*x_spline(i, 1) ...
-%         + 3*(2*t - 3*t.^2)*x_spline(i, 3) + 3*t.^2*x_spline(i, 4);
-%     y_d = @(t) -3*(1-t).^2*y_spline(i, 1) + 3*(3*t.^2 - 4*t + 1)*y_spline(i, 1) ...
-%         + 3*(2*t - 3*t.^2)*y_spline(i, 3) + 3*t.^2*y_spline(i, 4);
-%     f = @(T) integral(@(t) sqrt(x_d(t).^2 + y_d(t).^2), 0., T);
-% 
-%     in = 0:0.01:1;
-%     for j = 1:101
-%         store(j, i) = f(in(j));
-%     end
-% end
