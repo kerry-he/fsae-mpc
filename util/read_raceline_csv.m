@@ -1,4 +1,4 @@
-function [x, y, vx, vy, ax, ay, dt] = read_raceline_csv(filename)
+function [x, y, vx, vy, ax, ay, dt, rx, ry, lx, ly] = read_raceline_csv(filename)
 %READ_RACELINE_CSV Reads an output ORL file and outputs its contents as
 %vectors
 
@@ -13,6 +13,10 @@ function [x, y, vx, vy, ax, ay, dt] = read_raceline_csv(filename)
     ax = A(:, 5);
     ay = A(:, 6);
     dt = A(:, 7);
+    rx = A(:, 8);
+    ry = A(:, 9);
+    lx = A(:, 10);
+    ly = A(:, 11);
 
 end
 
