@@ -51,7 +51,7 @@ x0 = zeros(N_x, 1);
 %% Simulate MPC
 N_simulation = 500;
 x = zeros(4, 1);
-x_opt = zeros(N_x * N_steps, 1);
+x_opt = reshape(x_ref, N_x, N_steps);
 x_history = zeros(N_simulation, 4);
 u_opt_history = zeros(N_simulation, N_u + N_soft);
 x_opt_history = zeros(N_simulation, N_x);
@@ -63,9 +63,9 @@ for i = 1:N_simulation
     
     % Define new reference points
     x_ref(1, :) = s : TARGET_VEL*dt : s+TARGET_VEL*dt*(N_steps - 1);
-
+    
     % Define QP problem
-    [A, B, d] = linearise_kinematic_curvilinear(x_ref, u_ref, kappa);
+    [A, B, d] = linearise_kinematic_curvilinear(reshape(x_opt, N_x, N_steps), u_ref, kappa);
     [A_bar, B_bar, d_bar] = sequential_integration(A, B, d, dt);
     [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, x_lb, x_ub, state_idx, soft_idx);
     [H, f] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft);
