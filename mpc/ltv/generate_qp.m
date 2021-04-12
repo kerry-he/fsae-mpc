@@ -22,12 +22,13 @@ function [H, f] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, 
     % Construct full weight matrices
     Q_bar = spdiags([repmat(Q(:), N_steps - 1, 1); Q_terminal(:)], 0, ...
         N_steps*N_x, N_steps*N_x);
-    R_bar = spdiags([repmat(R(:), N_steps, 1); repmat(R_soft(:), N_steps, 1)], ...
-        0, N_steps*(N_u+N_soft), N_steps*(N_u+N_soft));
+    R_bar = spdiags([repmat(R(:), N_steps, 1); repmat(R_soft(:), N_steps, 1); 0], ...
+        0, N_steps*(N_u+N_soft)+1, N_steps*(N_u+N_soft)+1);
     
     % Define QP parameters
     H = 2 * (B_bar' * Q_bar * B_bar + R_bar);
     f = 2 * B_bar' * Q_bar * (A_bar * x0 + d_bar - x_ref(:));
+    f(end) = 1e8;
     
 end
 

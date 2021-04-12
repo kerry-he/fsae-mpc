@@ -25,21 +25,21 @@ N_steps = 40;
 dt = 0.1;
 
 % Define constraints
-state_idx = [4; 5];
+state_idx = [];
 soft_idx = [2];
 N_soft = length(soft_idx);
-x_lb = repmat([0, -0.4, -1.0], N_steps, 1);
-x_ub = repmat([50, 0.4, 1.0], N_steps, 1);
+x_lb = repmat([-0.75], N_steps, 1);
+x_ub = repmat([0.75], N_steps, 1);
 x_lb = x_lb(:); x_ub = x_ub(:);
 
-u_lb = [repmat([-10; -0.4], N_steps, 1); repmat([-1e10], N_soft*N_steps, 1)];
-u_ub = [repmat([10; 0.4], N_steps, 1); repmat([1e10], N_soft*N_steps, 1)];
+u_lb = [repmat([-10; -0.4], N_steps, 1); repmat([0], 1, 1)];
+u_ub = [repmat([10; 0.4], N_steps, 1); repmat([1e10], 1, 1)];
 
 % Define cost weights
 Q = [5; 50; 10; 0; 0];
 Q_terminal = Q * 10;
 R = [10, 10];
-R_soft = ones(N_soft, 1) * 1e10;
+R_soft = [];
 
 % Sample parameters
 TARGET_VEL = 10;

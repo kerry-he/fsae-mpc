@@ -8,7 +8,7 @@ function [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, lb, 
     N_soft = length(soft_idx);
 
     % Append B_bar matrix to include soft constraints
-    B_bar = [B_bar, zeros(N_x*N_steps, N_soft*N_steps)];
+    B_bar = [B_bar, zeros(N_x*N_steps, 1)];
     
     % Define state constraints
     state_idx_full = zeros(N_state*N_steps, 1);
@@ -32,8 +32,12 @@ function [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, lb, 
     lbA = lb - const;
     ubA = ub - const;
     
+    lbA = [lbA; -ones(size(lb))*1e10];
+    ubA = [ones(size(ub))*1e10; ubA];
+    
     % Modify B_bar matrix to account for soft constraints
-    xA(end-N_soft*N_steps+1 : end, end-N_soft*N_steps+1 : end) = eye(N_soft*N_steps);    
+    xA = repmat(xA, 2, 1);
+    xA(:, end) = [ones(size(ub)); -ones(size(lb))];
 
 end
 
