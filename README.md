@@ -20,7 +20,7 @@ In the MATLAB terminal, run the following commands from within the repository di
 
 ```matlab
 mex -setup C++ % Chooses a C++ compiler. Note you may need to install a compiler if one isn't installed already.
-cd qpOASES/interfaces/matlab
+cd packages/qpOASES/interfaces/matlab
 make % Runs the compilation script
-cd ../../../
+cd ../../../../
 ```
