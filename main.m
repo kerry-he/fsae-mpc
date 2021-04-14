@@ -5,7 +5,7 @@ addpath(genpath('util'));
 addpath(genpath('spline'));
 addpath(genpath('mpc'));
 addpath(genpath('vehicle_models'));
-addpath(genpath('qpOASES'));
+addpath(genpath('packages'));
 
 %% Obtain track spline
 filename = "data/fsg2019.csv";
@@ -25,21 +25,21 @@ N_steps = 40;
 dt = 0.1;
 
 % Define constraints
-state_idx = [];
+state_idx = [4, 5];
 soft_idx = [2];
 N_soft = length(soft_idx);
-x_lb = repmat([-0.75], N_steps, 1);
-x_ub = repmat([0.75], N_steps, 1);
+x_lb = repmat([0, -0.4, -0.75], N_steps, 1);
+x_ub = repmat([1e10, 0.4, 0.75], N_steps, 1);
 x_lb = x_lb(:); x_ub = x_ub(:);
 
-u_lb = [repmat([-10; -0.4], N_steps, 1); repmat([0], 1, 1)];
-u_ub = [repmat([10; 0.4], N_steps, 1); repmat([1e10], 1, 1)];
+u_lb = [repmat([-10; -0.4], N_steps, 1); 0];
+u_ub = [repmat([10; 0.4], N_steps, 1); 1e10];
 
 % Define cost weights
 Q = [5; 50; 10; 0; 0];
 Q_terminal = Q * 10;
 R = [10, 10];
-R_soft = [];
+R_soft = 1e8;
 
 % Sample parameters
 TARGET_VEL = 10;

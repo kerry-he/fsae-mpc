@@ -24,7 +24,7 @@ function [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, lb, 
     % Segment out parts of matrix which correspond to variables which
     % constraints are applied to
     A = A_bar(constraint_idx, :);
-    xA = B_bar(constraint_idx, :);
+    xA = B_bar([constraint_idx; soft_idx_full], :);
     D = d_bar(constraint_idx, :);
     const = A*x0 + D;
     
@@ -32,12 +32,11 @@ function [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, lb, 
     lbA = lb - const;
     ubA = ub - const;
     
-    lbA = [lbA; -ones(size(lb))*1e10];
-    ubA = [ones(size(ub))*1e10; ubA];
+    lbA = [lbA; -ones(N_soft*N_steps, 1)*1e10];
+    ubA = [ubA(1:N_state*N_steps); ones(N_soft*N_steps, 1)*1e10; ubA(N_state*N_steps+1:end)];
     
     % Modify B_bar matrix to account for soft constraints
-    xA = repmat(xA, 2, 1);
-    xA(:, end) = [ones(size(ub)); -ones(size(lb))];
+    xA(end-2*N_soft*N_steps+1:end, end) = [ones(N_soft*N_steps, 1); -ones(N_soft*N_steps, 1)];
 
 end
 
