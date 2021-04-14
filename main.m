@@ -5,7 +5,7 @@ addpath(genpath('util'));
 addpath(genpath('spline'));
 addpath(genpath('mpc'));
 addpath(genpath('vehicle_models'));
-addpath(genpath('lib'));
+addpath(genpath('optimizers'));
 
 %% Obtain track spline
 filename = "data/fsg2019.csv";
