@@ -1,4 +1,4 @@
-function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt)
+function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, info)
 %NMPC_KINMATIC_CURVILINEAR Computes a NMPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame.
 %   INPUTS:
@@ -6,9 +6,18 @@ function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt)
 %       x_ref - Reference trajectory [x_ref_1, x_ref_2, ...]
 %       kappa - Spline function
 %       dt - Time step
+%       info - IPOPT information from previous iteration
 %   OUTPUTS:
 %       x - Optimised variable
 %       info - Information about solved problem
+
+    % Warm starting
+    if length(info) == 1
+        options.ipopt.warm_start_init_point = 'yes';
+        options.zl = info.zl;
+        options.zu = info.zu; 
+        options.lambda = info.lambda;
+    end
 
     % Define constants
     [N_x, N_steps] = size(x_ref);
@@ -34,17 +43,14 @@ function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt)
     options.cu = zeros(N_x*N_steps, 1); % Upper bound on constraint function
     
     % Set IPOPT options
-    options.ipopt.print_level           = 3;
-    options.ipopt.max_iter              = 100;
-    options.ipopt.tol                   = 1e-8;
-    %options.ipopt.derivative_test       = 'first-order'; % Debugging
+    options.ipopt.print_level           = 0;
+    options.ipopt.max_iter              = 10;
+    options.ipopt.tol                   = 1e1;
     options.ipopt.hessian_approximation = 'limited-memory';
 
     % Define callback functions
     funcs.objective         = @objective; % Objective function (Required)
     funcs.gradient          = @gradient; % Gradient of objective (Required)
-    %funcs.hessian           = @hessian; % Hessian of the Lagrangian at the current point (Required unless using quasi-Newton approximation)
-    %funcs.hessianstructure  = @hessianstructure; % Structure of Hessian (Required unless using quasi-Newton approximation)
     
     funcs.constraints       = @constraints; % Constraint function, corresponds to cu/cl (Optional)
     funcs.jacobian          = @jacobian; % Jacobian of the constraints at the current points (Optional)
@@ -187,18 +193,3 @@ function J = jacobian(x, auxdata)
     end
     
     J = sparse(J);
-
-% % ------------------------------------------------------------------
-% function H = hessianstructure(auxdata)
-%     m = auxdata{2};
-%     H = [ tril(ones(m))  zeros(m)
-%           zeros(m)     zeros(m) ];
-%     H = sparse(H);
-% 
-% % ------------------------------------------------------------------
-% function H = hessian(x, sigma, lambda, auxdata)  
-%     [n m A y lambda] = deal(auxdata{:});
-%     H = [ tril(A'*A)  zeros(m)
-%          zeros(m)   zeros(m) ];
-%     H = sparse(sigma * H);
-%   

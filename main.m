@@ -1,4 +1,4 @@
-clear all; close all; clc;
+close all; clc;
 
 %% Add paths to required function folders
 addpath(genpath('util'));
@@ -18,7 +18,7 @@ y_spline = make_spline_periodic(y);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
 
 %% Set MPC parameters
-MODE = "NMPC";
+MODE = "LTV-MPC";
 
 % Define time horizon
 N_x = 5;
@@ -31,18 +31,20 @@ TARGET_VEL = 10;
 x_ref = zeros(N_x, N_steps);
 x_ref(4, :) = TARGET_VEL;
 u_ref = zeros(N_u, N_steps);
-x0 = zeros(N_x, 1);
 
 %% Simulate MPC
 N_simulation = 500;
 x = zeros(4, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
-x_mpc = [x_ref; zeros(N_u, N_steps)];
+ipopt_info = [];
+x0 = zeros(N_x, 1);
+
 x_history = zeros(N_simulation, 4);
 u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
 
 for i = 1:N_simulation
+    tic
     % Calculate coordinates in curvilinear frame
     [s, n, mu] = cartesian_to_curvilinear(x(1), x(2), x(3), x_spline, y_spline, dl, x_opt(1));
     x0 = [s; n; mu; x(4); x_opt(5)];
@@ -57,7 +59,7 @@ for i = 1:N_simulation
             reshape(x_opt, N_x, N_steps), zeros(N_u, N_steps));
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
-        x_mpc = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt);
+        [x_mpc, ipopt_info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, ipopt_info);
         x_opt = x_mpc(1:5);
         u_opt = x_mpc(6:7);
     end
@@ -71,6 +73,7 @@ for i = 1:N_simulation
     if mod(i, 50) == 0
         display("Running iteration: " + i)
     end
+    toc
 end
 
 %% Plot results
