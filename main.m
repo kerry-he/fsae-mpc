@@ -18,28 +18,13 @@ y_spline = make_spline_periodic(y);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
 
 %% Set MPC parameters
+MODE = "NMPC";
+
 % Define time horizon
 N_x = 5;
 N_u = 2;
 N_steps = 40;
 dt = 0.1;
-
-% Define constraints
-state_idx = [4, 5];
-soft_idx = [2];
-N_soft = length(soft_idx);
-x_lb = repmat([0, -0.4, -0.75], N_steps, 1);
-x_ub = repmat([1e10, 0.4, 0.75], N_steps, 1);
-x_lb = x_lb(:); x_ub = x_ub(:);
-
-u_lb = [repmat([-10; -0.4], N_steps, 1); 0];
-u_ub = [repmat([10; 0.4], N_steps, 1); 1e10];
-
-% Define cost weights
-Q = [5; 50; 10; 0; 0];
-Q_terminal = Q * 10;
-R = [10, 10];
-R_soft = 1e8;
 
 % Sample parameters
 TARGET_VEL = 10;
@@ -52,8 +37,9 @@ x0 = zeros(N_x, 1);
 N_simulation = 500;
 x = zeros(4, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
+x_mpc = [x_ref; zeros(N_u, N_steps)];
 x_history = zeros(N_simulation, 4);
-u_opt_history = zeros(N_simulation, N_u + N_soft);
+u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
 
 for i = 1:N_simulation
@@ -64,20 +50,22 @@ for i = 1:N_simulation
     % Define new reference points
     x_ref(1, :) = s : TARGET_VEL*dt : s+TARGET_VEL*dt*(N_steps - 1);
     
-    % Define QP problem
-    [A, B, d] = linearise_kinematic_curvilinear(reshape(x_opt, N_x, N_steps), u_ref, kappa);
-    [A_bar, B_bar, d_bar] = sequential_integration(A, B, d, dt);
-    [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, x_lb, x_ub, state_idx, soft_idx);
-    [H, f] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft);
-    
-    % Solve QP problem
-    [u_opt,fval] = qpOASES(H, f, xA, u_lb, u_ub, lbA, ubA);
-    x_opt = A_bar*x0 + B_bar*u_opt + d_bar;
+    % Solve MPC problem
+    if MODE == "LTV-MPC"
+        % Solve linear time varying MPC problem
+        [u_opt, x_opt] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, ...
+            reshape(x_opt, N_x, N_steps), zeros(N_u, N_steps));
+    elseif MODE == "NMPC"
+        % Solve the nonlinear MPC problem
+        x_mpc = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt);
+        x_opt = x_mpc(1:5);
+        u_opt = x_mpc(6:7);
+    end
 
     % Update vehicle model
     x = kinematic_bicycle(x, [u_opt(1); x_opt(5)], dt);
     x_history(i, :) = x';
-    u_opt_history(i, :) = [u_opt(1:2); u_opt(N_u*N_steps + 1)]';
+    u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:5)';
      
     if mod(i, 50) == 0

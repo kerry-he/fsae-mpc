@@ -8,8 +8,8 @@ function x = kinematic_bicycle(x0, u, dt)
 %       x - Updated state vector
 
     % Define vehicle constants
-    lr = 1.;
-    lf = 1.;
+    lr = 0.6183;
+    lf = 0.8672;
     lr_ratio = lr / (lr + lf);
     
     % Calculate derivatives

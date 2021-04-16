@@ -15,8 +15,8 @@ function [A, B, d] = linearise_kinematic_curvilinear(x, u, kappa)
     [N_u, ~] = size(u); 
 
     % Define vehicle constants
-    lr = 1.;
-    lf = 1.;
+    lr = 0.6183;
+    lf = 0.8672;
     lr_ratio = lr / (lr + lf);
 
     % Preallocate
