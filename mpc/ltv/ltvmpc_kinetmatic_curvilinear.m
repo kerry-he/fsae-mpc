@@ -1,6 +1,16 @@
 function [u_opt, x_opt] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, x_lin, u_lin)
-%MPC_KINETMATIC_CURVILINEAR Summary of this function goes here
-%   Detailed explanation goes here
+%MPC_KINETMATIC_CURVILINEAR Computes a LTV-MPC step for a kinematic bicycle
+%model using a curvilinear coordinate frame
+%   INPUTS:
+%       x0 - Initial state
+%       x_ref - Reference trajectory [x_ref_1, x_ref_2, ...]
+%       kappa - Spline function
+%       dt - Time step
+%       x_lin - Linearisation trajectory for state
+%       u_lin - Linearisation trajectory for controls
+%   OUTPUTS:
+%       u_opt - Optimised control trajectory
+%       x_opt - Optimised state trajectory
 
     % Define time horizon
     N_steps = 40;
