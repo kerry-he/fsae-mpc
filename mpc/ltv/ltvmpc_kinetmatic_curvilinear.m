@@ -1,4 +1,4 @@
-function [u_opt, x_opt] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, x_lin, u_lin)
+function [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, x_lin, u_lin, QP)
 %MPC_KINETMATIC_CURVILINEAR Computes a LTV-MPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame
 %   INPUTS:
@@ -18,8 +18,8 @@ function [u_opt, x_opt] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, x_
     % Define constraints
     state_idx = [4, 5];
     soft_idx = [2];
-    x_lb = repmat([0, -0.4, -0.75], N_steps, 1);
-    x_ub = repmat([1e10, 0.4, 0.75], N_steps, 1);
+    x_lb = repmat([0, -0.4, -1.0], N_steps, 1);
+    x_ub = repmat([1e10, 0.4, 1.0], N_steps, 1);
     x_lb = x_lb(:); x_ub = x_ub(:);
 
     u_lb = [repmat([-10; -0.4], N_steps, 1); 0];
@@ -38,7 +38,15 @@ function [u_opt, x_opt] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, x_
     [H, f] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft);
     
     % Solve QP problem
-    [u_opt, ~] = qpOASES(H, f, xA, u_lb, u_ub, lbA, ubA);
+    options = qpOASES_options('MPC');
+    
+    if QP == 0
+        [QP, u_opt] = qpOASES_sequence('i', H, f, xA, u_lb, u_ub, lbA, ubA, options);
+    else
+        u_opt = qpOASES_sequence('m', QP, H, f, xA, u_lb, u_ub, lbA, ubA, options);
+    end
+    
+    %u_opt = qpOASES(H, f, xA, u_lb, u_ub, lbA, ubA, options);
     x_opt = A_bar*x0 + B_bar*u_opt + d_bar;
 
 end

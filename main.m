@@ -1,4 +1,4 @@
-close all; clc;
+clear all; close all; clc;
 
 %% Add paths to required function folders
 addpath(genpath('util'));
@@ -42,9 +42,9 @@ x0 = zeros(N_x, 1);
 x_history = zeros(N_simulation, 4);
 u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
+QP = 0;
 
 for i = 1:N_simulation
-    tic
     % Calculate coordinates in curvilinear frame
     [s, n, mu] = cartesian_to_curvilinear(x(1), x(2), x(3), x_spline, y_spline, dl, x_opt(1));
     x0 = [s; n; mu; x(4); x_opt(5)];
@@ -55,8 +55,8 @@ for i = 1:N_simulation
     % Solve MPC problem
     if MODE == "LTV-MPC"
         % Solve linear time varying MPC problem
-        [u_opt, x_opt] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, ...
-            reshape(x_opt, N_x, N_steps), zeros(N_u, N_steps));
+        [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, ...
+            reshape(x_opt, N_x, N_steps), zeros(N_u, N_steps), QP);
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
         [x_mpc, ipopt_info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, ipopt_info);
@@ -73,7 +73,10 @@ for i = 1:N_simulation
     if mod(i, 50) == 0
         display("Running iteration: " + i)
     end
-    toc
+end
+
+if MODE == "LTV-MPC"
+	qpOASES_sequence('c', QP);
 end
 
 %% Plot results
