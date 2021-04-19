@@ -19,12 +19,13 @@ kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl);
 
 %% Set MPC parameters
 MODE = "NMPC";
+VISUALISE = true;
 
 % Define time horizon
 N_x = 5;
 N_u = 2;
 N_steps = 40;
-dt = 0.1;
+dt = 0.025;
 
 % Sample parameters
 TARGET_VEL = 15;
@@ -33,7 +34,7 @@ x_ref(4, :) = TARGET_VEL;
 u_ref = zeros(N_u, N_steps);
 
 %% Simulate MPC
-N_simulation = 500;
+N_simulation = 2500;
 x = zeros(4, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
@@ -46,7 +47,14 @@ u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
 QP = 0;
 
+figure
+plot(rx, ry, "y*")
+hold on
+plot(lx, ly, "b*")
+
+
 for i = 1:N_simulation
+    tic
     % Calculate coordinates in curvilinear frame
     [s, n, mu] = cartesian_to_curvilinear(x(1), x(2), x(3), x_spline, y_spline, dl, x_opt(1));
     x0 = [s; n; mu; x(4); x_opt(5)];
@@ -71,10 +79,21 @@ for i = 1:N_simulation
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:5)';
+    
+    if VISUALISE
+        car_marker = plot(x(1), x(2), "ko");
+        [x_pred, y_pred, theta] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
+            x_opt(2:N_x:end), x_opt(3:N_x:end), x_spline, y_spline, dl);
+        car_opt_marker = plot(x_pred, y_pred, "r*");
+        pause(0.1)
+        delete(car_marker);
+        delete(car_opt_marker);
+    end
      
     if mod(i, 50) == 0
         display("Running iteration: " + i)
     end
+    toc
 end
 
 if MODE == "LTV-MPC"
