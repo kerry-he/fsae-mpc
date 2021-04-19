@@ -18,7 +18,7 @@ y_spline = make_spline_periodic(y);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
 
 %% Set MPC parameters
-MODE = "LTV-MPC";
+MODE = "NMPC";
 
 % Define time horizon
 N_x = 5;
@@ -27,7 +27,7 @@ N_steps = 40;
 dt = 0.1;
 
 % Sample parameters
-TARGET_VEL = 10;
+TARGET_VEL = 15;
 x_ref = zeros(N_x, N_steps);
 x_ref(4, :) = TARGET_VEL;
 u_ref = zeros(N_u, N_steps);
@@ -36,6 +36,8 @@ u_ref = zeros(N_u, N_steps);
 N_simulation = 500;
 x = zeros(4, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
+x_mpc = [x_opt; zeros(N_u, N_steps)];
+x_mpc = x_mpc(:);
 ipopt_info = [];
 x0 = zeros(N_x, 1);
 
@@ -59,7 +61,7 @@ for i = 1:N_simulation
             reshape(x_opt, N_x, N_steps), zeros(N_u, N_steps), QP);
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
-        [x_mpc, ipopt_info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, ipopt_info);
+        [x_mpc, ipopt_info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_mpc, ipopt_info);
         x_opt = x_mpc(1:5);
         u_opt = x_mpc(6:7);
     end
