@@ -19,8 +19,9 @@ function [x, y, theta] = curvilinear_to_cartesian(s, n, mu, x_P, y_P, dl)
     
     x_tangent = -interpolate_spline_d(s, y_P, dl);
     y_tangent = interpolate_spline_d(s, x_P, dl);
-    x_tangent = x_tangent ./ norm([x_tangent; y_tangent]);
-    y_tangent = y_tangent ./ norm([x_tangent; y_tangent]);
+    tangent_norm = sqrt(x_tangent.^2 + y_tangent.^2);
+    x_tangent = x_tangent ./ tangent_norm;
+    y_tangent = y_tangent ./ tangent_norm;
     
     x = x_track + n .* x_tangent;
     y = y_track + n .* y_tangent;

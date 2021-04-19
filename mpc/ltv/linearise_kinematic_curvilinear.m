@@ -1,4 +1,4 @@
-function [A, B, d] = linearise_kinematic_curvilinear(x, u, kappa)
+function [A, B, d] = linearise_kinematic_curvilinear(x, u, kappa, kappa_d)
 %LINEARISE_KINEMATIC_CURVILINEAR Linearises the dynamics of the kinematic
 %bicycle model using a curvilinear coordinate frame at a given setpoint
 %   INPUTS:
@@ -27,6 +27,7 @@ function [A, B, d] = linearise_kinematic_curvilinear(x, u, kappa)
     for i = 1:N_steps
         % Precompute common expressions
         k = kappa(x(1, i));
+        k_d = kappa_d(x(1, i));
         beta = atan(lr_ratio * tan(x(5, i)));
         s_mu_beta = sin(x(3, i) + beta);
         c_mu_beta = cos(x(3, i) + beta);
@@ -35,6 +36,7 @@ function [A, B, d] = linearise_kinematic_curvilinear(x, u, kappa)
         denom_nk = 1 / (1 - x(2, i) * k); 
 
         % Compute partial derivatives
+        s_s = x(4, i)*c_mu_beta * denom_nk^2 * k_d * x(2, i);
         s_n = x(4, i)*c_mu_beta * denom_nk^2 * k;
         s_mu = -x(4, i)*s_mu_beta * denom_nk;
         s_v = c_mu_beta * denom_nk;
@@ -44,17 +46,18 @@ function [A, B, d] = linearise_kinematic_curvilinear(x, u, kappa)
         n_v = s_mu_beta;
         n_delta = x(4, i)*c_mu_beta * beta_d;
 
+        mu_s = -x(4, i)*c_mu_beta * denom_nk * k_d - s_s * k;
         mu_n = -s_n * k;
         mu_mu = -s_mu * k;
         mu_v = sin(beta)/lr - s_v * k;
         mu_delta = x(4, i)*cos(beta)*beta_d/lr - s_delta * k;
 
         % Populate matrices
-        A(:, :, i) = sparse([0   s_n    s_mu    s_v    s_delta;
-                             0   0      n_mu    n_v    n_delta;
-                             0   mu_n   mu_mu   mu_v   mu_delta;
-                             0   0      0       0      0;
-                             0   0      0       0      0]);
+        A(:, :, i) = sparse([s_s    s_n    s_mu    s_v    s_delta;
+                             0      0      n_mu    n_v    n_delta;
+                             mu_s   mu_n   mu_mu   mu_v   mu_delta;
+                             0      0      0       0      0;
+                             0      0      0       0      0]);
 
         B(:, :, i) = sparse([0 0;
                              0 0;

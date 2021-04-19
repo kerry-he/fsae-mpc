@@ -16,25 +16,26 @@ x_spline = make_spline_periodic(x);
 y_spline = make_spline_periodic(y);
 [x_spline, y_spline, dl, L] = arclength_reparam(x_spline, y_spline, 75, true);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
+kappa_d = @(s) interpolate_curvature_d(s, x_spline, y_spline, dl); 
 
 %% Set MPC parameters
-MODE = "NMPC";
+MODE = "LTV-MPC";
 VISUALISE = true;
 
 % Define time horizon
 N_x = 5;
 N_u = 2;
 N_steps = 40;
-dt = 0.025;
+dt = 0.05;
 
 % Sample parameters
-TARGET_VEL = 15;
+TARGET_VEL = 20;
 x_ref = zeros(N_x, N_steps);
 x_ref(4, :) = TARGET_VEL;
 u_ref = zeros(N_u, N_steps);
 
 %% Simulate MPC
-N_simulation = 2500;
+N_simulation = 1000;
 x = zeros(4, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
@@ -65,7 +66,7 @@ for i = 1:N_simulation
     % Solve MPC problem
     if MODE == "LTV-MPC"
         % Solve linear time varying MPC problem
-        [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, ...
+        [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, kappa_d, dt, ...
             reshape(x_opt, N_x, N_steps), zeros(N_u, N_steps), QP);
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
@@ -74,22 +75,26 @@ for i = 1:N_simulation
         u_opt = x_mpc(6:7);
     end
 
+    if VISUALISE
+        car_marker = plot(x(1), x(2), "ko");
+        [x_pred, y_pred, theta] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
+            x_opt(2:N_x:end), x_opt(3:N_x:end), x_spline, y_spline, dl);
+        [x_mid, y_mid, theta] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
+            zeros(N_steps, 1), x_opt(3:N_x:end), x_spline, y_spline, dl);
+        car_opt_marker = plot(x_pred, y_pred, "r.");
+        mid_opt_marker = plot(x_mid, y_mid, "k.");
+        pause(0.1)
+        delete(car_marker);
+        delete(car_opt_marker);
+        delete(mid_opt_marker);
+    end
+    
     % Update vehicle model
     x = kinematic_bicycle(x, [u_opt(1); x_opt(5)], dt);
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:5)';
     
-    if VISUALISE
-        car_marker = plot(x(1), x(2), "ko");
-        [x_pred, y_pred, theta] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
-            x_opt(2:N_x:end), x_opt(3:N_x:end), x_spline, y_spline, dl);
-        car_opt_marker = plot(x_pred, y_pred, "r*");
-        pause(0.1)
-        delete(car_marker);
-        delete(car_opt_marker);
-    end
-     
     if mod(i, 50) == 0
         display("Running iteration: " + i)
     end
