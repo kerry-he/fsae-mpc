@@ -13,7 +13,7 @@ function [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, ka
 %       x_opt - Optimised state trajectory
 
     % Define time horizon
-    N_steps = 40;
+    N_steps = 500;
 
     % Define constraints
     state_idx = [4, 5];
@@ -26,9 +26,9 @@ function [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, ka
     u_ub = [repmat([10; 0.4], N_steps, 1); 1e10];
 
     % Define cost weights
-    Q = [5; 50; 10; 5; 0];
-    Q_terminal = Q * 10;
-    R = [10, 10];
+    Q = [5; 1000; 2000; 0; 0];
+    Q_terminal = Q * 100;
+    R = [1, 1];
     R_soft = 1e8;
     
     % Define QP problem
@@ -38,15 +38,18 @@ function [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, ka
     [H, f] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft);
     
     % Solve QP problem
-    options = qpOASES_options('MPC');
+%     options = qpOASES_options('MPC');
+%     
+%     if QP == 0
+%         [QP, u_opt] = qpOASES_sequence('i', H, f, xA, u_lb, u_ub, lbA, ubA, options);
+%     else
+%         u_opt = qpOASES_sequence('m', QP, H, f, xA, u_lb, u_ub, lbA, ubA, options);
+%     end
     
-    if QP == 0
-        [QP, u_opt] = qpOASES_sequence('i', H, f, xA, u_lb, u_ub, lbA, ubA, options);
-    else
-        u_opt = qpOASES_sequence('m', QP, H, f, xA, u_lb, u_ub, lbA, ubA, options);
+    [u_opt, fval, exitflag, iter, lambda, auxOutput] = qpOASES(H, f, xA, u_lb, u_ub, lbA, ubA);
+    if exitflag
+        display(exitflag)
     end
-    
-%     u_opt = qpOASES(H, f, xA, u_lb, u_ub, lbA, ubA, options);
     x_opt = A_bar*x0 + B_bar*u_opt + d_bar;
 
 end

@@ -19,31 +19,31 @@ kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl);
 kappa_d = @(s) interpolate_curvature_d(s, x_spline, y_spline, dl); 
 
 %% Set MPC parameters
-MODE = "LTV-MPC";
+MODE = "NMPC";
 VISUALISE = true;
 
 % Define time horizon
 N_x = 5;
 N_u = 2;
-N_steps = 40;
-dt = 0.05;
+N_steps = 1000;
+dt = 0.025;
 
 % Sample parameters
-TARGET_VEL = 20;
+TARGET_VEL = 10;
 x_ref = zeros(N_x, N_steps);
 x_ref(4, :) = TARGET_VEL;
 u_ref = zeros(N_u, N_steps);
 
 %% Simulate MPC
-N_simulation = 500;
-x = zeros(4, 1);
+N_simulation = 5;
+x = zeros(5, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
 x_mpc = x_mpc(:);
 ipopt_info = [];
 x0 = zeros(N_x, 1);
 
-x_history = zeros(N_simulation, 4);
+x_history = zeros(N_simulation, 5);
 u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
 QP = 0;
@@ -58,7 +58,9 @@ for i = 1:N_simulation
     tic
     % Calculate coordinates in curvilinear frame
     [s, n, mu] = cartesian_to_curvilinear(x(1), x(2), x(3), x_spline, y_spline, dl, x_opt(1));
-    x0 = [s; n; mu; x(4); x_opt(5)];
+    x0 = [s; n; mu; x(4); x(5)];
+    
+    TARGET_VEL = TARGET_VEL + 2
     
     % Define new reference points
     x_ref(1, :) = s : TARGET_VEL*dt : s+TARGET_VEL*dt*(N_steps - 1);
@@ -83,16 +85,21 @@ for i = 1:N_simulation
             x_opt(2:N_x:end), x_opt(3:N_x:end), x_spline, y_spline, dl);
         [x_mid, y_mid, theta] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
             zeros(N_steps, 1), x_opt(3:N_x:end), x_spline, y_spline, dl);
+        
+        x_cart_pred = kinematic_bicycle_horizon(x, [u_opt(1:2:N_u*N_steps), u_opt(2:2:N_u*N_steps)]', dt);
+        
         car_opt_marker = plot(x_pred, y_pred, "r.");
-        mid_opt_marker = plot(x_mid, y_mid, "k.");
+        mid_opt_marker = plot(x_mid, y_mid, "k-");
+        cart_marker = plot(x_cart_pred(1, :), x_cart_pred(2, :), "b.");
         pause(0.1)
         delete(car_marker);
         delete(car_opt_marker);
         delete(mid_opt_marker);
+        delete(cart_marker);
     end
     
     % Update vehicle model
-    x = kinematic_bicycle(x, [u_opt(1); x_opt(5)], dt);
+    x = kinematic_bicycle(x, [u_opt(1); u_opt(2)], dt);
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:5)';
@@ -111,8 +118,8 @@ end
 x_int = interpolate_spline(0:1:L, x_spline, dl);
 y_int = interpolate_spline(0:1:L, y_spline, dl);
 
-plot(x_history(:, 1), x_history(:, 2))
+plot(x_history(:, 1), x_history(:, 2), 'r--')
 hold on
-plot(x_int, y_int)
-plot(rx, ry, "*")
-plot(lx, ly, "*")
+plot(x_int, y_int, 'k')
+plot(rx, ry, "y*")
+plot(lx, ly, "b*")

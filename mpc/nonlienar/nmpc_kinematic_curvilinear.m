@@ -27,8 +27,8 @@ function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_init, in
     x_ref = [x_ref; zeros(N_u, N_steps)];
 
     % Defining cost weights
-    Q = [5; 50; 10; 0; 0];
-    Q_terminal = Q * 10;
+    Q = [5; 50; 500; 5; 100];
+    Q_terminal = Q * 1;
     R = [10, 10];
     
     Q_vec = [repmat([Q(:); R(:)], N_steps - 1, 1); Q_terminal(:); R(:)];
@@ -38,14 +38,14 @@ function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_init, in
     options.auxdata = { x0, x_ref, kappa, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = repmat([-inf; -1.0; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); % Lower bound on optimization variable
-    options.ub = repmat([inf; 1.0; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); % Upper bound on optimization variable
+    options.lb = repmat([-inf; -inf; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); % Lower bound on optimization variable
+    options.ub = repmat([inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); % Upper bound on optimization variable
     options.cl = zeros(N_x*N_steps, 1); % Lower bound on constraint function
     options.cu = zeros(N_x*N_steps, 1); % Upper bound on constraint function
     
     % Set IPOPT options
     options.ipopt.print_level           = 0;
-    options.ipopt.max_iter              = 100;
+    options.ipopt.max_iter              = 5000;
     options.ipopt.tol                   = 1e-6; % OR 1e-5
     options.ipopt.hessian_approximation = 'limited-memory';
 
@@ -59,7 +59,7 @@ function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_init, in
 
     % Run IPOPT.
     x_init(1:end-(N_x+N_u)*N_steps) = x_init((N_x+N_u)*N_steps+1:end);
-    [x, info] = ipopt_auxdata(x_init, funcs, options);    
+    [x, info] = ipopt_auxdata(x_ref(:), funcs, options);  
     
 % ------------------------------------------------------------------
 function f = objective(x, auxdata)
