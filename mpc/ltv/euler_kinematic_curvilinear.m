@@ -1,6 +1,7 @@
-function [A, B, d] = linearise_kinematic_curvilinear(x, u, kappa, kappa_d)
-%LINEARISE_KINEMATIC_CURVILINEAR Linearises the dynamics of the kinematic
+function [A, B, d] = euler_kinematic_curvilinear(x, u, kappa, kappa_d)
+%EULER_KINEMATIC_CURVILINEAR Linearises the dynamics of the kinematic
 %bicycle model using a curvilinear coordinate frame at a given setpoint
+%using first order Euler integration
 %   INPUTS:
 %       x - State vector to linearise at [s; n; mu; v; delta]
 %       u - Control vector to linearise at[a; delta_d]

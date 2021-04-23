@@ -9,7 +9,6 @@ function [x, y, theta] = curvilinear_to_cartesian(s, n, mu, x_P, y_P, dl)
 %       y_P - Spline y coefficients
 %       dl - Scale factor (for arclength parameterised spline, otherwise =1)
 %   OUTPUTS:
-
 %       x - x Cartesian coordinate
 %       y - y Cartesain coordinate
 %       theta - Yaw
