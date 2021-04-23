@@ -25,8 +25,8 @@ VISUALISE = true;
 % Define time horizon
 N_x = 5;
 N_u = 2;
-N_steps = 80;
-dt = 0.025;
+N_steps = 40;
+dt = 0.05;
 
 % Sample parameters
 TARGET_VEL = 20;
@@ -38,6 +38,7 @@ u_ref = zeros(N_u, N_steps);
 N_simulation = 1000;
 x = zeros(5, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
+u_opt = zeros(N_u*N_steps+1, 1);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
 x_mpc = x_mpc(:);
 ipopt_info = [];
@@ -48,14 +49,13 @@ u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
 QP = 0;
 
-figure
+figure(1)
 plot(rx, ry, "y*")
 hold on
 plot(lx, ly, "b*")
 
 
 for i = 1:N_simulation
-    tic
     % Calculate coordinates in curvilinear frame
     [s, n, mu] = cartesian_to_curvilinear(x(1), x(2), x(3), x_spline, y_spline, dl, x_opt(1));
     x0 = [s; n; mu; x(4); x(5)];
@@ -67,7 +67,7 @@ for i = 1:N_simulation
     if MODE == "LTV-MPC"
         % Solve linear time varying MPC problem
         [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, kappa_d, dt, ...
-            reshape(x_opt, N_x, N_steps), zeros(N_u, N_steps), QP);
+            reshape(x_opt, N_x, N_steps), reshape(u_opt(1:end-1), N_u, N_steps), QP);
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
         [x_mpc, ipopt_info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_mpc, ipopt_info);
@@ -78,24 +78,9 @@ for i = 1:N_simulation
     end
 
     if VISUALISE
-        car_marker = plot(x(1), x(2), "ko");
-        [x_pred, y_pred, theta] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
-            x_opt(2:N_x:end), x_opt(3:N_x:end), x_spline, y_spline, dl);
-        [x_mid, y_mid, theta] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
-            zeros(N_steps, 1), x_opt(3:N_x:end), x_spline, y_spline, dl);
-        
-        x_cart_pred = kinematic_bicycle_horizon(x, [u_opt(1:2:N_u*N_steps), u_opt(2:2:N_u*N_steps)]', dt);
-        
-        car_opt_marker = plot(x_pred, y_pred, "r.");
-        mid_opt_marker = plot(x_mid, y_mid, "k-");
-        cart_marker = plot(x_cart_pred(1, :), x_cart_pred(2, :), "b.");
-        pause(0.1)
-        delete(car_marker);
-        delete(car_opt_marker);
-        delete(mid_opt_marker);
-        delete(cart_marker);
+        visualise_mpc(x, x_opt, u_opt, x_spline, y_spline, dl, dt)
     end
-    
+        
     % Update vehicle model
     x = kinematic_bicycle(x, [u_opt(1); u_opt(2)], dt);
     x_history(i, :) = x';
@@ -105,7 +90,6 @@ for i = 1:N_simulation
     if mod(i, 50) == 0
         display("Running iteration: " + i)
     end
-    toc
 end
 
 if MODE == "LTV-MPC"
@@ -113,6 +97,7 @@ if MODE == "LTV-MPC"
 end
 
 %% Plot results
+figure(1)
 x_int = interpolate_spline(0:1:L, x_spline, dl);
 y_int = interpolate_spline(0:1:L, y_spline, dl);
 

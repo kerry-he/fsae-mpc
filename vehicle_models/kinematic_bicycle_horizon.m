@@ -1,6 +1,12 @@
 function x_traj = kinematic_bicycle_horizon(x0, u_traj, dt)
-%KINETMATIC_BICYCLE_HORIZON Summary of this function goes here
-%   Detailed explanation goes here
+%KINETMATIC_BICYCLE_HORIZON Sequentially integrates a state forwards given
+%a control trajectory
+%   INPTUS:
+%       x0 - Initial state
+%       u_traj - Control trajectory
+%       dt - Time step
+%   OUTPUTS:
+%       x_traj - State trajectory
 
     N_steps = length(u_traj);
     

@@ -1,6 +1,7 @@
-function [A, B, d] = linearise_kinematic_curvilinear(x, u, kappa, kappa_d)
-%LINEARISE_KINEMATIC_CURVILINEAR Linearises the dynamics of the kinematic
+function [A, B, d] = euler_kinematic_curvilinear(x, u, kappa, kappa_d)
+%EULER_KINEMATIC_CURVILINEAR Linearises the dynamics of the kinematic
 %bicycle model using a curvilinear coordinate frame at a given setpoint
+%using first order Euler integration
 %   INPUTS:
 %       x - State vector to linearise at [s; n; mu; v; delta]
 %       u - Control vector to linearise at[a; delta_d]
@@ -53,9 +54,9 @@ function [A, B, d] = linearise_kinematic_curvilinear(x, u, kappa, kappa_d)
         mu_delta = x(4, i)*cos(beta)*beta_d/lr - s_delta * k;
 
         % Populate matrices
-        A(:, :, i) = sparse([0    s_n    s_mu    s_v    s_delta;
+        A(:, :, i) = sparse([s_s    s_n    s_mu    s_v    s_delta;
                              0      0      n_mu    n_v    n_delta;
-                             0   mu_n   mu_mu   mu_v   mu_delta;
+                             mu_s   mu_n   mu_mu   mu_v   mu_delta;
                              0      0      0       0      0;
                              0      0      0       0      0]);
 

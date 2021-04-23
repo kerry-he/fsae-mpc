@@ -4,6 +4,7 @@ function x = kinematic_bicycle(x0, u, dt)
 %   INPUTS:
 %       x0 - State initial conditions [x; y; theta; v]
 %       u - Input controls [a, delta]
+%       dt - Time step
 %   OUTPUTS:
 %       x - Updated state vector
 
