@@ -19,23 +19,23 @@ kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl);
 kappa_d = @(s) interpolate_curvature_d(s, x_spline, y_spline, dl); 
 
 %% Set MPC parameters
-MODE = "NMPC";
+MODE = "LTV-MPC";
 VISUALISE = true;
 
 % Define time horizon
 N_x = 5;
 N_u = 2;
-N_steps = 1000;
+N_steps = 80;
 dt = 0.025;
 
 % Sample parameters
-TARGET_VEL = 10;
+TARGET_VEL = 20;
 x_ref = zeros(N_x, N_steps);
 x_ref(4, :) = TARGET_VEL;
 u_ref = zeros(N_u, N_steps);
 
 %% Simulate MPC
-N_simulation = 5;
+N_simulation = 1000;
 x = zeros(5, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
@@ -59,11 +59,9 @@ for i = 1:N_simulation
     % Calculate coordinates in curvilinear frame
     [s, n, mu] = cartesian_to_curvilinear(x(1), x(2), x(3), x_spline, y_spline, dl, x_opt(1));
     x0 = [s; n; mu; x(4); x(5)];
-    
-    TARGET_VEL = TARGET_VEL + 2
-    
+        
     % Define new reference points
-    x_ref(1, :) = s : TARGET_VEL*dt : s+TARGET_VEL*dt*(N_steps - 1);
+    x_ref(1, :) = x0(1)+TARGET_VEL*dt : TARGET_VEL*dt : x0(1)+TARGET_VEL*dt*N_steps;
     
     % Solve MPC problem
     if MODE == "LTV-MPC"

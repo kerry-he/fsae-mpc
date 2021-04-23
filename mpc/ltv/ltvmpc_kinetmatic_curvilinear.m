@@ -13,7 +13,7 @@ function [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, ka
 %       x_opt - Optimised state trajectory
 
     % Define time horizon
-    N_steps = 500;
+    N_steps = 80;
 
     % Define constraints
     state_idx = [4, 5];
