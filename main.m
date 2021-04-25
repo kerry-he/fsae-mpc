@@ -18,6 +18,10 @@ y_spline = make_spline_periodic(y);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
 kappa_d = @(s) interpolate_curvature_d(s, x_spline, y_spline, dl); 
 
+% [x, info, ds, N] = minimum_time_planner(x_spline, y_spline, dl, L);
+% [x_pred, y_pred, ~] = curvilinear_to_cartesian(0:ds:ds*(N-1), ...
+%     x(1:6:end), x(1:6:end), x_spline, y_spline, dl);
+
 %% Set MPC parameters
 MODE = "LTV-MPC";
 VISUALISE = true;
@@ -70,7 +74,7 @@ for i = 1:N_simulation
             reshape(x_opt, N_x, N_steps), reshape(u_opt(1:end-1), N_u, N_steps), QP);
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
-        [x_mpc, ipopt_info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_mpc, ipopt_info);
+        [x_mpc, ipopt_info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_mpc, ipopt_info);
         x_opt = x_mpc([1:7:end; 2:7:end; 3:7:end; 4:7:end; 5:7:end]);
         x_opt = x_opt(:);
         u_opt = x_mpc([6:7:end; 7:7:end;]);
@@ -80,7 +84,14 @@ for i = 1:N_simulation
     if VISUALISE
         visualise_mpc(x, x_opt, u_opt, x_spline, y_spline, dl, dt)
     end
-        
+
+    [x_pred, y_pred, ~] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
+        x_opt(2:N_x:end), x_opt(3:N_x:end), x_spline, y_spline, dl);
+    x_cart_pred = kinematic_bicycle_horizon(x, [u_opt(1:2:N_u*N_steps), ...
+        u_opt(2:2:N_u*N_steps)]', dt);
+    
+    error(i) = norm([x_pred, y_pred]' - x_cart_pred(1:2, 2:end));
+    
     % Update vehicle model
     x = kinematic_bicycle(x, [u_opt(1); u_opt(2)], dt);
     x_history(i, :) = x';
