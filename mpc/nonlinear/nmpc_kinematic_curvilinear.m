@@ -38,8 +38,8 @@ function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x
     options.auxdata = { x0, x_ref, kappa, kappa_d, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = repmat([-inf; -1.0; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); % Lower bound on optimization variable
-    options.ub = repmat([inf; 1.0; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); % Upper bound on optimization variable
+    options.lb = repmat([-inf; -inf; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); % Lower bound on optimization variable
+    options.ub = repmat([inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); % Upper bound on optimization variable
     options.cl = zeros(N_x*N_steps, 1); % Lower bound on constraint function
     options.cu = zeros(N_x*N_steps, 1); % Upper bound on constraint function
     
@@ -49,7 +49,7 @@ function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x
     options.ipopt.tol                   = 1e-6; % OR 1e-5
     options.ipopt.hessian_approximation = 'limited-memory';
 %     options.ipopt.derivative_test       = 'first-order';
-%     options.ipopt.derivative_test_tol   = 1;
+%     options.ipopt.derivative_test_tol   = 1e-2;
     
     % Define callback functions
     funcs.objective         = @objective; % Objective function (Required)

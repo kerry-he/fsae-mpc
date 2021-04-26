@@ -19,7 +19,6 @@ function [x, info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, d
         options.lambda = info.lambda;
     end
     
-
     % Define constants
     [N_x, N_steps] = size(x_ref);
     N_u = 2;
@@ -46,7 +45,7 @@ function [x, info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, d
     % Set IPOPT options
     options.ipopt.print_level           = 0;
     options.ipopt.max_iter              = 5000;
-    options.ipopt.tol                   = 1e-8; % OR 1e-5
+    options.ipopt.tol                   = 1e-6; % OR 1e-5
     options.ipopt.hessian_approximation = 'limited-memory';
 %     options.ipopt.derivative_test       = 'first-order';
 %     options.ipopt.derivative_test_tol   = 1;
@@ -86,20 +85,19 @@ function c = constraints(x, auxdata)
     
     x_i = x0;
 
-    rk_factor = [1 2 2 1];
     for i = 1:N_steps
         x_i_1 = x((i-1)*(N_x+N_u) + 1:(i-1)*(N_x+N_u) + N_x);
         u_i = x((i-1)*(N_x+N_u) + N_x + 1  :  i*(N_x+N_u));
+                
+        % Perform RK4 step
+        k1 = f_curv_kin(x_i, u_i, kappa);
+        k2 = f_curv_kin(x_i + k1*dt / 2, u_i, kappa);
+        k3 = f_curv_kin(x_i + k2*dt / 2, u_i, kappa);
+        k4 = f_curv_kin(x_i + k3*dt, u_i, kappa);
         
-        x_rk = x_i;
-        f_total = zeros(N_x, 1);
-        for j = 1:4
-            f = f_curv_kin(x_rk, u_i, kappa);
-            x_rk = x_i + f*dt / rk_factor(mod(j, 4)+1);
-            f_total = f_total + f * rk_factor(j);
-        end
+        f = (k1 + 2*k2 + 2*k3 + k4) / 6;
         
-        c((i-1)*N_x + 1:i*N_x) = x_i + dt * f_total / 6 - x_i_1;
+        c((i-1)*N_x + 1:i*N_x) = x_i + dt*f - x_i_1;
         x_i = x_i_1;
     end
 
@@ -114,9 +112,9 @@ function J = jacobianstructure(auxdata)
          0 1 1 1 1;
          0 0 0 1 0;
          0 0 0 0 1];
-    B = [0 0;
-         0 0;
-         0 0;
+    B = [1 1;
+         1 1;
+         1 1;
          1 0;
          0 1];
 
@@ -144,39 +142,35 @@ function J = jacobian(x, auxdata)
     B = B_curv_kin(x0, u0, kappa) * dt;
     J(1:N_x, 1:(N_x+N_u)) = [-I, B];       
     
-    rk_factor = [1 2 2 1];
     for i = 2:N_steps
         x_i = x((i-2)*(N_x+N_u) + 1 : (i-2)*(N_x+N_u) + N_x);
         u_i = x((i-1)*(N_x+N_u) + N_x + 1 : i*(N_x+N_u));
         
-        x_k = x_i;
-        A = zeros(N_x, N_x);
-        dk_dx = zeros(N_x, N_x, 4);
-        for j = 1:4
-            % Populate matrices
-            A_k = A_curv_kin(x_k, u_i, kappa);
-               
-            switch j
-                case 1
-                    dk_dx(:, :, j) = A_k;
-                case 2
-                    dk_dx(:, :, j) = A_k * (I + dk_dx(:, :, j - 1)*dt / 2);
-                case 3
-                    dk_dx(:, :, j) = A_k * (I + dk_dx(:, :, j - 1)*dt / 2);
-                case 4
-                    dk_dx(:, :, j) = A_k * (I + dk_dx(:, :, j - 1)*dt);
-            end         
-               
-            A = A + A_k * rk_factor(j);
-
-            f = f_curv_kin(x_k, u_i, kappa);
-
-            x_k = x_i + f*dt / rk_factor(mod(j, 4)+1);
-        end
-
-        % Populate matrices
-        A = A*dt / 6 + I;
-        B = B_curv_kin(x_i, u_i, kappa) * dt;
+        % Calculate RK4 slopes
+        k1 = f_curv_kin(x_i, u_i, kappa);
+        k2 = f_curv_kin(x_i + k1*dt / 2, u_i, kappa);
+        k3 = f_curv_kin(x_i + k2*dt / 2, u_i, kappa);
+                
+        % Calculate RK4 partial derivatives w.r.t. states 
+        dfdx1 = A_curv_kin(x_i, u_i, kappa);
+        dfdx2 = A_curv_kin(x_i + k1*dt / 2, u_i, kappa);
+        dfdx3 = A_curv_kin(x_i + k2*dt / 2, u_i, kappa);
+        dfdx4 = A_curv_kin(x_i + k3*dt, u_i, kappa);
+        
+        dkdx1 = dfdx1;
+        dkdx2 = dfdx2 * (I + dkdx1*dt / 2);
+        dkdx3 = dfdx3 * (I + dkdx2*dt / 2);
+        dkdx4 = dfdx4 * (I + dkdx3*dt);
+        
+        % Calculate RK4 partial derivatives w.r.t. controls
+        dkdu1 = B_curv_kin(x_i, u_i, kappa);
+        dkdu2 = B_curv_kin(x_i + k1*dt / 2, u_i, kappa) + dfdx2*dkdu1*dt / 2;
+        dkdu3 = B_curv_kin(x_i + k2*dt / 2, u_i, kappa) + dfdx3*dkdu2*dt / 2;
+        dkdu4 = B_curv_kin(x_i + k3*dt, u_i, kappa) + dfdx4*dkdu3*dt / 2;
+        
+        % Calculate final matrices
+        A = I + dt * (dkdx1 + 2*dkdx2 + 2*dkdx3 + dkdx4) / 6;
+        B = dt * (dkdu1 + 2*dkdu2 + 2*dkdu3 + dkdu4) / 6;
         
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
         J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];

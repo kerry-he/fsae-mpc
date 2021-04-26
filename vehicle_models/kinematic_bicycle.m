@@ -9,25 +9,15 @@ function x = kinematic_bicycle(x0, u, dt)
 %       x - Updated state vector
 
     % Define vehicle constants
-    lr = 0.6183;
-    lf = 0.8672;
-    lr_ratio = lr / (lr + lf);
-    
-    % Calculate derivatives
-    beta = atan(lr_ratio * tan(x0(5)));
-    x_d = x0(4) * cos(x0(3) + beta);
-    y_d = x0(4) * sin(x0(3) + beta);
-    theta_d = x0(4) / lr * sin(beta);
-    v_d = u(1);
-    delta_d = u(2);
+    k1 = f_cart_kin(x0, u);
+    k2 = f_cart_kin(x0 + k1*dt / 2, u);
+    k3 = f_cart_kin(x0 + k2*dt / 2, u);
+    k4 = f_cart_kin(x0 + k3*dt, u);
+
+    f = (k1 + 2*k2 + 2*k3 + k4) / 6;
     
     % Integrate state
-    x = [x0(1) + x_d * dt;
-         x0(2) + y_d * dt;
-         x0(3) + theta_d * dt;
-         x0(4) + v_d * dt;
-         x0(5) + delta_d * dt];
+    x = x0 + dt*f;
      
-
 end
 

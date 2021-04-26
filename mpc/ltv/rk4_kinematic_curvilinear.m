@@ -17,32 +17,46 @@ function [A, B, d] = rk4_kinematic_curvilinear(x, u, kappa, dt)
     [N_u, ~] = size(u); 
 
     % Preallocate
+    I = eye(N_x);
     A = zeros(N_x, N_x, N_steps);
     B = zeros(N_x, N_u, N_steps);
     d = zeros(N_x, N_steps);
     
-    rk_factor = [1 2 2 1];
     for i = 1:N_steps
-        x_k = x(:, i);
-        u_k = u(:, i);
-        for j = 1:4
-            % Populate matrices  
-            A_k = A_curv_kin(x_k, u_k, kappa);
-            A(:, :, i) = A(:, :, i) + A_k*rk_factor(j);
+        x_i = x(:, i);
+        u_i = u(:, i);
+        
+        % Calculate RK4 slopes
+        k1 = f_curv_kin(x_i, u_i, kappa);
+        k2 = f_curv_kin(x_i + k1*dt / 2, u_i, kappa);
+        k3 = f_curv_kin(x_i + k2*dt / 2, u_i, kappa);
+        k4 = f_curv_kin(x_i + k3*dt, u_i, kappa);
+        
+        f = (k1 + 2*k2 + 2*k3 + k4) / 6;
+        
+        % Calculate RK4 partial derivatives w.r.t. states 
+        dfdx1 = A_curv_kin(x_i, u_i, kappa);
+        dfdx2 = A_curv_kin(x_i + k1*dt / 2, u_i, kappa);
+        dfdx3 = A_curv_kin(x_i + k2*dt / 2, u_i, kappa);
+        dfdx4 = A_curv_kin(x_i + k3*dt, u_i, kappa);
+        
+        dkdx1 = dfdx1;
+        dkdx2 = dfdx2 * (I + dkdx1*dt / 2);
+        dkdx3 = dfdx3 * (I + dkdx2*dt / 2);
+        dkdx4 = dfdx4 * (I + dkdx3*dt);
+        
+        % Calculate RK4 partial derivatives w.r.t. controls
+        dkdu1 = B_curv_kin(x_i, u_i, kappa);
+        dkdu2 = B_curv_kin(x_i + k1*dt / 2, u_i, kappa) + dfdx2*dkdu1*dt / 2;
+        dkdu3 = B_curv_kin(x_i + k2*dt / 2, u_i, kappa) + dfdx3*dkdu2*dt / 2;
+        dkdu4 = B_curv_kin(x_i + k3*dt, u_i, kappa) + dfdx4*dkdu3*dt / 2;
+        
+        % Calculate final matrices
+        A(:, :, i) = (dkdx1 + 2*dkdx2 + 2*dkdx3 + dkdx4) / 6;
+        B(:, :, i) = (dkdu1 + 2*dkdu2 + 2*dkdu3 + dkdu4) / 6;
+        d(:, i) = f - A(:, :, i)*x_i - B(:, :, i)*u_i;
 
-            B_k = B_curv_kin(x_k, u_k, kappa);   
-            B(:, :, i) = B(:, :, i) + B_k*rk_factor(j);
-
-            f = f_curv_kin(x_k, u_k, kappa);
-            d(:, i) = d(:, i) + (f - A_k*x_k - B_k*u_k) * rk_factor(j);
-
-            x_k = x(:, i) + f*dt / rk_factor(mod(j, 4)+1);
-        end
     end
-    
-    A = A / 6;
-    B = B / 6;
-    d = d / 6;
     
 end
 

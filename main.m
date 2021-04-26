@@ -23,7 +23,7 @@ kappa_d = @(s) interpolate_curvature_d(s, x_spline, y_spline, dl);
 %     x(1:6:end), x(1:6:end), x_spline, y_spline, dl);
 
 %% Set MPC parameters
-MODE = "LTV-MPC";
+MODE = "NMPC";
 VISUALISE = true;
 
 % Define time horizon
@@ -39,7 +39,7 @@ x_ref(4, :) = TARGET_VEL;
 u_ref = zeros(N_u, N_steps);
 
 %% Simulate MPC
-N_simulation = 1000;
+N_simulation = 350;
 x = zeros(5, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
 u_opt = zeros(N_u*N_steps+1, 1);
