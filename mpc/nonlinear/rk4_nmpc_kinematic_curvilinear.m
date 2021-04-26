@@ -1,4 +1,4 @@
-function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_init, info)
+function [x, info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_init, info)
 %NMPC_KINMATIC_CURVILINEAR Computes a NMPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame.
 %   INPUTS:
@@ -81,39 +81,26 @@ function g = gradient(x, auxdata)
 function c = constraints(x, auxdata)
     [x0, ~, kappa, ~, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
-    % Define vehicle constants
-    lr = 0.6183;
-    lf = 0.8672;
-    
+    % Preallocate
     c = zeros(N_x*N_steps, 1);
     
-    x_state = x0;
+    x_i = x0;
 
     rk_factor = [1 2 2 1];
     for i = 1:N_steps
-        x_state_next = x((i-1)*(N_x+N_u) + 1:(i-1)*(N_x+N_u) + N_x);
-        x_control = x((i-1)*(N_x+N_u) + N_x + 1  :  i*(N_x+N_u));
+        x_i_1 = x((i-1)*(N_x+N_u) + 1:(i-1)*(N_x+N_u) + N_x);
+        u_i = x((i-1)*(N_x+N_u) + N_x + 1  :  i*(N_x+N_u));
         
-        x_rk = x_state;
-        f = zeros(N_x, 1);
+        x_rk = x_i;
+        f_total = zeros(N_x, 1);
         for j = 1:4
-            beta = atan(lr/(lr+lf) * tan(x_rk(5)));
-            k = kappa(x_rk(1));
-
-            s_d = x_rk(4) * cos(x_rk(3) + beta) / (1 - x_rk(2) * k);
-
-            x_state_d = [s_d;
-                         x_rk(4) * sin(x_rk(3) + beta);
-                         x_rk(4) * sin(beta) / lr - s_d * k;
-                         x_control(1);
-                         x_control(2)];
-                     
-            x_rk = x_state + x_state_d*dt / rk_factor(mod(j, 4)+1);
-            f = f + x_state_d*rk_factor(j);
+            f = f_curv_kin(x_rk, u_i, kappa);
+            x_rk = x_i + f*dt / rk_factor(mod(j, 4)+1);
+            f_total = f_total + f * rk_factor(j);
         end
         
-        c((i-1)*N_x + 1:i*N_x) = x_state + dt * f / 6 - x_state_next;
-        x_state = x_state_next;
+        c((i-1)*N_x + 1:i*N_x) = x_i + dt * f_total / 6 - x_i_1;
+        x_i = x_i_1;
     end
 
 % ------------------------------------------------------------------
@@ -146,95 +133,53 @@ function J = jacobianstructure(auxdata)
 
 % ------------------------------------------------------------------
 function J = jacobian(x, auxdata)  
-    [~, ~, kappa, kappa_d, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
+    [x0, ~, kappa, ~, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
-    I = -eye(N_x);
+    I = eye(N_x);
 
-    B = [0 0;
-         0 0;
-         0 0;
-         1 0;
-         0 1] * dt;
-
-    % Define vehicle constants
-    lr = 0.6183;
-    lf = 0.8672;
-    lr_ratio = lr / (lr + lf);
-    
     % Fill out Jacobian
     J = zeros(N_x*N_steps, (N_x+N_u)*N_steps);
-    J(1:N_x, 1:(N_x+N_u)) = [I, B];       
+    
+    u0 = x(N_x + 1 : N_x+N_u);
+    B = B_curv_kin(x0, u0, kappa) * dt;
+    J(1:N_x, 1:(N_x+N_u)) = [-I, B];       
     
     rk_factor = [1 2 2 1];
     for i = 2:N_steps
-        x_state = x((i-2)*(N_x+N_u) + 1:(i-2)*(N_x+N_u) + N_x);
-        x_control = x((i-1)*(N_x+N_u) + N_x + 1  :  i*(N_x+N_u));
+        x_i = x((i-2)*(N_x+N_u) + 1 : (i-2)*(N_x+N_u) + N_x);
+        u_i = x((i-1)*(N_x+N_u) + N_x + 1 : i*(N_x+N_u));
         
-        x_k = x_state;
+        x_k = x_i;
         A = zeros(N_x, N_x);
         dk_dx = zeros(N_x, N_x, 4);
         for j = 1:4
-            % Precompute common expressions
-            k = kappa(x_k(1));
-            k_d = kappa_d(x_k(1));
-            beta = atan(lr_ratio * tan(x_k(5)));
-            s_mu_beta = sin(x_k(3) + beta);
-            c_mu_beta = cos(x_k(3) + beta);
-            beta_d = lr_ratio * sec(x_k(5))^2 / ...
-                (1 + (lr_ratio * tan(x_k(5)))^2);
-            denom_nk = 1 / (1 - x_k(2) * k); 
-
-            % Compute partial derivatives
-            s_s = x_k(4)*c_mu_beta * denom_nk^2 * k_d * x_k(2);
-            s_n = x_k(4)*c_mu_beta * denom_nk^2 * k;
-            s_mu = -x_k(4)*s_mu_beta * denom_nk;
-            s_v = c_mu_beta * denom_nk;
-            s_delta = -x_k(4)*s_mu_beta * denom_nk * beta_d;
-
-            n_mu = x_k(4)*c_mu_beta;
-            n_v = s_mu_beta;
-            n_delta = x_k(4)*c_mu_beta * beta_d;
-
-            mu_s = -x_k(4)*c_mu_beta * denom_nk * k_d - s_s * k;
-            mu_n = -s_n * k;
-            mu_mu = -s_mu * k;
-            mu_v = sin(beta)/lr - s_v * k;
-            mu_delta = x_k(4)*cos(beta)*beta_d/lr - s_delta * k;
-
             % Populate matrices
-            A_k = [0      s_n    s_mu    s_v    s_delta;
-                   0      0      n_mu    n_v    n_delta;
-                   0      mu_n   mu_mu   mu_v   mu_delta;
-                   0      0      0       0      0;
-                   0      0      0       0      0];
+            A_k = A_curv_kin(x_k, u_i, kappa);
                
             switch j
                 case 1
                     dk_dx(:, :, j) = A_k;
                 case 2
-                    dk_dx(:, :, j) = A_k * (eye(N_x) + dk_dx(:, :, j - 1)*dt / 2);
+                    dk_dx(:, :, j) = A_k * (I + dk_dx(:, :, j - 1)*dt / 2);
                 case 3
-                    dk_dx(:, :, j) = A_k * (eye(N_x) + dk_dx(:, :, j - 1)*dt / 2);
+                    dk_dx(:, :, j) = A_k * (I + dk_dx(:, :, j - 1)*dt / 2);
                 case 4
-                    dk_dx(:, :, j) = A_k * (eye(N_x) + dk_dx(:, :, j - 1)*dt);
+                    dk_dx(:, :, j) = A_k * (I + dk_dx(:, :, j - 1)*dt);
             end         
                
-            A = A + A_k*rk_factor(j);
+            A = A + A_k * rk_factor(j);
 
-            f = [x_k(4)*c_mu_beta*denom_nk;
-                 x_k(4)*s_mu_beta;
-                 x_k(4)*sin(beta)/lr - x_k(4)*c_mu_beta*denom_nk*k;
-                 x_control(1);
-                 x_control(2)];
+            f = f_curv_kin(x_k, u_i, kappa);
 
-            x_k = x_state + f*dt / rk_factor(mod(j, 4)+1);
+            x_k = x_i + f*dt / rk_factor(mod(j, 4)+1);
         end
 
         % Populate matrices
-        A = A*dt / 6 + eye(N_x);
+        A = A*dt / 6 + I;
+        B = B_curv_kin(x_i, u_i, kappa) * dt;
         
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
-        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [I, B];
+        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];
     end
     
     J = sparse(J);

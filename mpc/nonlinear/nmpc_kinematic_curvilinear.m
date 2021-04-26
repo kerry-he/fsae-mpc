@@ -44,12 +44,12 @@ function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x
     options.cu = zeros(N_x*N_steps, 1); % Upper bound on constraint function
     
     % Set IPOPT options
-%     options.ipopt.print_level           = 0;
+    options.ipopt.print_level           = 0;
     options.ipopt.max_iter              = 5000;
     options.ipopt.tol                   = 1e-6; % OR 1e-5
     options.ipopt.hessian_approximation = 'limited-memory';
-    options.ipopt.derivative_test       = 'first-order';
-    options.ipopt.derivative_test_tol   = 1;
+%     options.ipopt.derivative_test       = 'first-order';
+%     options.ipopt.derivative_test_tol   = 1;
     
     % Define callback functions
     funcs.objective         = @objective; % Objective function (Required)
@@ -81,31 +81,20 @@ function g = gradient(x, auxdata)
 function c = constraints(x, auxdata)
     [x0, ~, kappa, ~, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
-    % Define vehicle constants
-    lr = 0.6183;
-    lf = 0.8672;
-    
+    % Preallocate
     c = zeros(N_x*N_steps, 1);
     
-    x_state = x0;
+    x_i = x0;
 
     for i = 1:N_steps
-        x_state_next = x((i-1)*(N_x+N_u) + 1:(i-1)*(N_x+N_u) + N_x);
-        x_control = x((i-1)*(N_x+N_u) + N_x + 1  :  i*(N_x+N_u));
+        x_i_1 = x((i-1)*(N_x+N_u) + 1:(i-1)*(N_x+N_u) + N_x);
+        u_i = x((i-1)*(N_x+N_u) + N_x + 1  :  i*(N_x+N_u));
         
-        beta = atan(lr/(lr+lf) * tan(x_state(5)));
-        k = kappa(x_state(1));
+        % Calculate dynamic model
+        f = f_curv_kin(x_i, u_i, kappa);
         
-        s_d = x_state(4) * cos(x_state(3) + beta) / (1 - x_state(2) * k);
-    
-        x_state_d = [s_d;
-                     x_state(4) * sin(x_state(3) + beta);
-                     x_state(4) * sin(beta) / lr - s_d * k;
-                     x_control(1);
-                     x_control(2)];
-        
-        c((i-1)*N_x + 1:i*N_x) = x_state + dt * x_state_d - x_state_next;
-        x_state = x_state_next;
+        c((i-1)*N_x + 1:i*N_x) = x_i + dt * f - x_i_1;
+        x_i = x_i_1;
     end
 
 % ------------------------------------------------------------------
@@ -138,65 +127,26 @@ function J = jacobianstructure(auxdata)
 
 % ------------------------------------------------------------------
 function J = jacobian(x, auxdata)  
-    [~, ~, kappa, kappa_d, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
+    [x0, ~, kappa, ~, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
-    I = -eye(N_x);
+    I = eye(N_x);
 
-    B = [0 0;
-         0 0;
-         0 0;
-         1 0;
-         0 1] * dt;
-
-    % Define vehicle constants
-    lr = 0.6183;
-    lf = 0.8672;
-    lr_ratio = lr / (lr + lf);
-    
     % Fill out Jacobian
     J = zeros(N_x*N_steps, (N_x+N_u)*N_steps);
-    J(1:N_x, 1:(N_x+N_u)) = [I, B];       
+    
+    u0 = x(N_x + 1 : N_x+N_u);
+    B = B_curv_kin(x0, u0, kappa) * dt;
+    J(1:N_x, 1:(N_x+N_u)) = [-I, B];       
     
     for i = 2:N_steps
-        x_state = x((i-2)*(N_x+N_u) + 1:(i-2)*(N_x+N_u) + N_x);
+        x_i = x((i-2)*(N_x+N_u) + 1 : (i-2)*(N_x+N_u) + N_x);
+        u_i = x((i-1)*(N_x+N_u) + N_x + 1 : i*(N_x+N_u));
         
-        % Precompute common expressions
-        k = kappa(x_state(1));
-        k_d = kappa_d(x_state(1));
-        beta = atan(lr_ratio * tan(x_state(5)));
-        s_mu_beta = sin(x_state(3) + beta);
-        c_mu_beta = cos(x_state(3) + beta);
-        beta_d = lr_ratio * sec(x_state(5))^2 / ...
-            (1 + (lr_ratio * tan(x_state(5)))^2);
-        denom_nk = 1 / (1 - x_state(2) * k); 
-
-        % Compute partial derivatives
-        s_s = x_state(4)*c_mu_beta * denom_nk^2 * k_d * x_state(2);
-        s_n = x_state(4)*c_mu_beta * denom_nk^2 * k;
-        s_mu = -x_state(4)*s_mu_beta * denom_nk;
-        s_v = c_mu_beta * denom_nk;
-        s_delta = -x_state(4)*s_mu_beta * denom_nk * beta_d;
-
-        n_mu = x_state(4)*c_mu_beta;
-        n_v = s_mu_beta;
-        n_delta = x_state(4)*c_mu_beta * beta_d;
-
-        mu_s = -x_state(4)*c_mu_beta * denom_nk * k_d - s_s * k;
-        mu_n = -s_n * k;
-        mu_mu = -s_mu * k;
-        mu_v = sin(beta)/lr - s_v * k;
-        mu_delta = x_state(4)*cos(beta)*beta_d/lr - s_delta * k;
-
-        % Populate matrices
-        A = [0   s_n    s_mu    s_v    s_delta;
-             0     0      n_mu    n_v    n_delta;
-             0  mu_n   mu_mu   mu_v   mu_delta;
-             0     0      0       0      0;
-             0     0      0       0      0];
-        A = A*dt + eye(N_x);
+        A = A_curv_kin(x_i, u_i, kappa) * dt + I;
+        B = B_curv_kin(x_i, u_i, kappa) * dt;
         
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
-        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [I, B];
+        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];
     end
     
     J = sparse(J);
