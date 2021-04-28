@@ -8,13 +8,15 @@ function x = kinematic_bicycle(x0, u, dt)
 %   OUTPUTS:
 %       x - Updated state vector
 
-    % Define vehicle constants
+    % Perform RK6 integration
     k1 = f_cart_kin(x0, u);
     k2 = f_cart_kin(x0 + k1*dt / 2, u);
-    k3 = f_cart_kin(x0 + k2*dt / 2, u);
-    k4 = f_cart_kin(x0 + k3*dt, u);
+    k3 = f_cart_kin(x0 + k1*dt / 4 + k2*dt / 8, u);
+    k4 = f_cart_kin(x0 - k2*dt + 2*k3*dt, u);
+    k5 = f_cart_kin(x0 + 7/27 * k2*dt + 10/27 * k2*dt + k4*dt / 27, u);
+    k6 = f_cart_kin(x0 + 28/625 * k1*dt - k2*dt / 5 + 546/625 * k3*dt + 54/625 * k4*dt - 378/625 * k5*dt, u);
 
-    f = (k1 + 2*k2 + 2*k3 + k4) / 6;
+    f = k1/24 + 5/48*k4 + 27/56*k5 + 125/336*k6;
     
     % Integrate state
     x = x0 + dt*f;

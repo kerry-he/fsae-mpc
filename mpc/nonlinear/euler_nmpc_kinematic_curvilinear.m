@@ -1,4 +1,4 @@
-function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_init, info)
+function [x, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_init, info)
 %NMPC_KINMATIC_CURVILINEAR Computes a NMPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame.
 %   INPUTS:
@@ -61,7 +61,7 @@ function [x, info] = nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x
 
     % Run IPOPT.
     x_init(1:end-(N_x+N_u)*N_steps) = x_init((N_x+N_u)*N_steps+1:end);
-    [x, info] = ipopt_auxdata(x_ref(:), funcs, options);  
+    [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
     
 % ------------------------------------------------------------------
 function f = objective(x, auxdata)

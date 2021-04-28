@@ -90,7 +90,8 @@ for i = 1:N_simulation
     x_cart_pred = kinematic_bicycle_horizon(x, [u_opt(1:2:N_u*N_steps), ...
         u_opt(2:2:N_u*N_steps)]', dt);
     
-    error(i) = norm([x_pred, y_pred]' - x_cart_pred(1:2, 2:end));
+    cpu_time(i) = ipopt_info.cpu;
+%     error(i) = norm([x_pred, y_pred]' - x_cart_pred(1:2, 2:end));
     
     % Update vehicle model
     x = kinematic_bicycle(x, [u_opt(1); u_opt(2)], dt);
