@@ -43,8 +43,7 @@ N_simulation = 350;
 x = zeros(5, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
 u_opt = zeros(N_u*N_steps+1, 1);
-x_mpc = [x_opt; zeros(N_u, N_steps)];
-x_mpc = x_mpc(:);
+x_mpc = repmat([0; 0; 0; 20; 0; 0; 0], N_steps*2+1, 1);
 ipopt_info = [];
 x0 = zeros(N_x, 1);
 
@@ -74,7 +73,7 @@ for i = 1:N_simulation
             reshape(x_opt, N_x, N_steps), reshape(u_opt(1:end-1), N_u, N_steps), QP);
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
-        [x_mpc, ipopt_info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_mpc, ipopt_info);
+        [x_mpc, ipopt_info] = hs_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_mpc, ipopt_info);
         x_opt = x_mpc([1:7:end; 2:7:end; 3:7:end; 4:7:end; 5:7:end]);
         x_opt = x_opt(:);
         u_opt = x_mpc([6:7:end; 7:7:end;]);
