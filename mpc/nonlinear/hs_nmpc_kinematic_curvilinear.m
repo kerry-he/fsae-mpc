@@ -70,6 +70,8 @@ function [x, info] = hs_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt
 
     % Run IPOPT.
     x_init(1:end-(N_x+N_u)) = x_init(N_x+N_u+1:end);
+    x_init(end-(N_x+N_u)+1 : end-(N_u)) = x_init(end-(N_x+N_u)+1 : end-(N_u))...
+        + dt*f_curv_kin(x_init(end-(N_x+N_u)+1 : end-(N_u)), x_init(end-N_u+1 : end), kappa);    
     [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
     
 % ------------------------------------------------------------------
