@@ -27,7 +27,13 @@ function [x, info] = hs_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt
     
     x_ref = [x0, x_ref];
     x_ref = [x_ref; zeros(N_u, N_steps)];
-    
+    x_ref_interp = zeros(N_x+N_u, N_steps*2-1);
+    for i = 1:length(x_ref)-1
+        x_ref_interp(:, (i-1)*2 + 1) = x_ref(:, i);
+        x_ref_interp(:, (i-1)*2 + 2) = (x_ref(:, i) + x_ref(:, i+1)) / 2;
+        x_ref_interp(:, (i-1)*2 + 3) = x_ref(:, i+1);
+    end
+    x_ref = x_ref_interp;
 
     % Defining cost weights
     Q = [5; 500; 2000; 0; 0];
@@ -41,8 +47,8 @@ function [x, info] = hs_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt
     options.auxdata = { x0, x_ref, kappa, kappa_d, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = repmat([-inf; -inf; -inf; 0; -0.4; -10.0; -0.4], N_steps*2-1, 1); % Lower bound on optimization variable
-    options.ub = repmat([inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps*2-1, 1); % Upper bound on optimization variable
+    options.lb = repmat([-inf; -1.0; -inf; 0; -0.4; -10.0; -0.4], N_steps*2-1, 1); % Lower bound on optimization variable
+    options.ub = repmat([inf; 1.0; inf; inf; 0.4; 10.0; 0.4], N_steps*2-1, 1); % Upper bound on optimization variable
     options.cl = zeros(N_x*(2*N_steps-1), 1); % Lower bound on constraint function
     options.cu = zeros(N_x*(2*N_steps-1), 1); % Upper bound on constraint function
     
@@ -63,7 +69,7 @@ function [x, info] = hs_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt
     funcs.jacobianstructure = @jacobianstructure; %Structure of Jacobian (Optional)
 
     % Run IPOPT.
-    x_init(1:end-(N_x+N_u)*N_steps) = x_init((N_x+N_u)*N_steps+1:end);
+    x_init(1:end-(N_x+N_u)) = x_init(N_x+N_u+1:end);
     [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
     
 % ------------------------------------------------------------------
@@ -150,7 +156,7 @@ function J = jacobian(x, auxdata)
     J = zeros(N_x*(2*(N_steps-1) + 1), (N_x+N_u)*(2*N_steps-1));
     J(1:N_x, 1:N_x) = I;
     
-    for i = 1:N_steps-1 
+    for i = 1:2:(N_steps-1)*2
         x_i = x((i-1)*(N_x+N_u) + 1 : (i-1)*(N_x+N_u) + N_x);
         u_i = x((i-1)*(N_x+N_u) + N_x + 1 : (i-1)*(N_x+N_u) + N_x + N_u);
         

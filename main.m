@@ -29,8 +29,8 @@ VISUALISE = true;
 % Define time horizon
 N_x = 5;
 N_u = 2;
-N_steps = 40;
-dt = 0.05;
+N_steps = 20;
+dt = 0.1;
 
 % Sample parameters
 TARGET_VEL = 20;
@@ -81,7 +81,7 @@ for i = 1:N_simulation
     end
 
     if VISUALISE
-        visualise_mpc(x, x_opt, u_opt, x_spline, y_spline, dl, dt)
+        visualise_mpc(x, x_opt, u_opt, x_spline, y_spline, dl, dt/2)
     end
 
     [x_pred, y_pred, ~] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
@@ -93,7 +93,7 @@ for i = 1:N_simulation
 %     error(i) = norm([x_pred, y_pred]' - x_cart_pred(1:2, 2:end));
     
     % Update vehicle model
-    x = kinematic_bicycle(x, [u_opt(1); u_opt(2)], dt);
+    x = kinematic_bicycle(x, [u_opt(3); u_opt(4)], dt/2);
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:5)';
