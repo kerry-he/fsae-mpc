@@ -26,7 +26,7 @@ function [x, info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, d
     x_ref = [x_ref; zeros(N_u, N_steps)];
 
     % Defining cost weights
-    Q = [5; 500; 2000; 0; 0];
+    Q = [5; 250; 2000; 0; 0];
     Q_terminal = Q * 10;
     R = [10, 10];
     
@@ -62,6 +62,7 @@ function [x, info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, d
     x_init(1:end-(N_x+N_u)-1) = x_init(N_x+N_u+1:end-1);
     x_init(end-(N_x+N_u) : end-N_u-1) = x_init(end-(N_x+N_u) : end-N_u-1)...
         + dt*f_curv_kin(x_init(end-(N_x+N_u) : end-N_u-1), x_init(end-N_u : end-1), kappa);
+    x_init(end) = 0;
     [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
     
 % ------------------------------------------------------------------

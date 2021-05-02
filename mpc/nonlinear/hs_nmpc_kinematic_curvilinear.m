@@ -36,7 +36,7 @@ function [x, info] = hs_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt
     x_ref = x_ref_interp;
 
     % Defining cost weights
-    Q = [5; 500; 2000; 0; 0];
+    Q = [5; 250; 2000; 0; 0];
     Q_terminal = Q * 10;
     R = [10, 10];
     
