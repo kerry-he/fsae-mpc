@@ -26,7 +26,7 @@ function [x, info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, d
     x_ref = [x_ref; zeros(N_u, N_steps)];
 
     % Defining cost weights
-    Q = [5; 500; 2000; 0; 0];
+    Q = [5; 250; 2000; 0; 0];
     Q_terminal = Q * 10;
     R = [10, 10];
     
@@ -37,10 +37,10 @@ function [x, info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, d
     options.auxdata = { x0, x_ref, kappa, kappa_d, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = repmat([-inf; -inf; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); % Lower bound on optimization variable
-    options.ub = repmat([inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); % Upper bound on optimization variable
-    options.cl = zeros(N_x*N_steps, 1); % Lower bound on constraint function
-    options.cu = zeros(N_x*N_steps, 1); % Upper bound on constraint function
+    options.lb = [repmat([-inf; -inf; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
+    options.ub = [repmat([inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); inf]; % Upper bound on optimization variable
+    options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -1.0], N_steps, 1)]; % Lower bound on constraint function
+    options.cu = [zeros(N_x*N_steps, 1); repmat([1.0; inf], N_steps, 1)]; % Upper bound on constraint function
     
     % Set IPOPT options
     options.ipopt.print_level           = 0;
@@ -59,31 +59,32 @@ function [x, info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, d
     funcs.jacobianstructure = @jacobianstructure; %Structure of Jacobian (Optional)
 
     % Run IPOPT.
-    x_init(1:end-(N_x+N_u)) = x_init(N_x+N_u+1:end);
-    x_init(end-(N_x+N_u)+1 : end-(N_u)) = x_init(end-(N_x+N_u)+1 : end-(N_u))...
-        + dt*f_curv_kin(x_init(end-(N_x+N_u)+1 : end-(N_u)), x_init(end-N_u+1 : end), kappa);
+    x_init(1:end-(N_x+N_u)-1) = x_init(N_x+N_u+1:end-1);
+    x_init(end-(N_x+N_u) : end-N_u-1) = x_init(end-(N_x+N_u) : end-N_u-1)...
+        + dt*f_curv_kin(x_init(end-(N_x+N_u) : end-N_u-1), x_init(end-N_u : end-1), kappa);
+    x_init(end) = 0;
     [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
     
 % ------------------------------------------------------------------
 function f = objective(x, auxdata)
     [~, x_ref, ~, ~, Q_bar, ~, ~, ~, ~] = deal(auxdata{:});
     
-    x_error = x - x_ref(:);
-    f = x_error' * Q_bar * x_error;
+    x_error = x(1:end-1) - x_ref(:);
+    f = x_error' * Q_bar * x_error + x(end)*1e8;
 
 % ------------------------------------------------------------------
 function g = gradient(x, auxdata)
     [~, x_ref, ~, ~, Q_bar, ~, ~, ~, ~] = deal(auxdata{:});
     
-    x_error = x - x_ref(:);
-    g = 2 * Q_bar * x_error;
+    x_error = x(1:end-1) - x_ref(:);
+    g = [2 * Q_bar * x_error; 1e8];
 
 % ------------------------------------------------------------------
 function c = constraints(x, auxdata)
     [x0, ~, kappa, ~, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
     % Preallocate
-    c = zeros(N_x*N_steps, 1);
+    c = zeros((N_x + 2)*N_steps, 1);
     
     x_i = x0;
 
@@ -101,6 +102,10 @@ function c = constraints(x, auxdata)
         
         c((i-1)*N_x + 1:i*N_x) = x_i + dt*f - x_i_1;
         x_i = x_i_1;
+        
+        % Soft constraints
+        c(N_x*N_steps + 1 + 2*(i-1)) = x_i(2) - x(end);
+        c(N_x*N_steps + 2 + 2*(i-1)) = x_i(2) + x(end);        
     end
 
 % ------------------------------------------------------------------
@@ -121,13 +126,23 @@ function J = jacobianstructure(auxdata)
          0 1];
 
     % Fill out Jacobian
-    J = zeros(N_x*N_steps, (N_x+N_u)*N_steps);
+    J = zeros((N_x + 2)*N_steps, (N_x+N_u)*N_steps + 1);
     J(1:N_x, 1:(N_x+N_u)) = [I, B];    
     
     for i = 2:N_steps
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
         J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [I, B];
     end
+   
+    
+    % Slack constraints
+    for i = 1:N_steps
+        J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
+        J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
+    end
+
+    J(N_x*N_steps + 1 : end, end) = ones(N_steps*2, 1);
+    
 
     J = sparse(J);
 
@@ -138,7 +153,7 @@ function J = jacobian(x, auxdata)
     I = eye(N_x);
 
     % Fill out Jacobian
-    J = zeros(N_x*N_steps, (N_x+N_u)*N_steps);
+    J = zeros((N_x + 2)*N_steps, (N_x+N_u)*N_steps + 1);
     
     u0 = x(N_x + 1 : N_x+N_u);
     B = B_curv_kin(x0, u0, kappa) * dt;
@@ -175,7 +190,17 @@ function J = jacobian(x, auxdata)
         B = dt * (dkdu1 + 2*dkdu2 + 2*dkdu3 + dkdu4) / 6;
         
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
-        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];
+        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];     
     end
+    
+    
+    % Slack constraints
+    for i = 1:N_steps
+        J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
+        J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
+    end
+
+    J(N_x*N_steps + 1 : end, end) = repmat([-1; 1], N_steps, 1);    
+    
     
     J = sparse(J);
