@@ -128,19 +128,20 @@ function J = jacobianstructure(auxdata)
     J = zeros((N_x + 2)*N_steps, (N_x+N_u)*N_steps + 1);
     J(1:N_x, 1:(N_x+N_u)) = [I, B];    
     
-    J(N_x*N_steps + 1, 2) = 1;
-    J(N_x*N_steps + 2, 2) = 1;    
-    
     for i = 2:N_steps
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
         J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [I, B];
-        
-        % Soft constraints
-        J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
-        J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
     end
+   
     
+    % Slack constraints
+    for i = 1:N_steps
+        J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
+        J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
+    end
+
     J(N_x*N_steps + 1 : end, end) = ones(N_steps*2, 1);
+    
 
     J = sparse(J);
 
@@ -156,10 +157,6 @@ function J = jacobian(x, auxdata)
     u0 = x(N_x + 1 : N_x+N_u);
     B = B_curv_kin(x0, u0, kappa) * dt;
     J(1:N_x, 1:(N_x+N_u)) = [-I, B];       
-    
-    % Soft constraints
-    J(N_x*N_steps + 1, 2) = 1;
-    J(N_x*N_steps + 2, 2) = 1;    
     
     for i = 2:N_steps
         x_i = x((i-2)*(N_x+N_u) + 1 : (i-2)*(N_x+N_u) + N_x);
@@ -192,13 +189,17 @@ function J = jacobian(x, auxdata)
         B = dt * (dkdu1 + 2*dkdu2 + 2*dkdu3 + dkdu4) / 6;
         
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
-        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];
-        
-        % Soft constraints
+        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];     
+    end
+    
+    
+    % Slack constraints
+    for i = 1:N_steps
         J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
         J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
     end
+
+    J(N_x*N_steps + 1 : end, end) = repmat([-1; 1], N_steps, 1);    
     
-    J(N_x*N_steps + 1 : end, end) = repmat([-1; 1], N_steps, 1);
     
     J = sparse(J);

@@ -60,7 +60,7 @@ function [x, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d,
     funcs.jacobianstructure = @jacobianstructure; %Structure of Jacobian (Optional)
 
     % Run IPOPT.
-    x_init(1:end-(N_x+N_u)-1) = x_init(N_x+N_u+1:end-1);
+    x_init(1:(N_x+N_u)*(N_steps-1)) = x_init(N_x+N_u+1:(N_x+N_u)*N_steps);
     x_init(end-(N_x+N_u) : end-N_u-1) = x_init(end-(N_x+N_u) : end-N_u-1)...
         + dt*f_curv_kin(x_init(end-(N_x+N_u) : end-N_u-1), x_init(end-N_u : end-1), kappa);
     [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
@@ -123,19 +123,21 @@ function J = jacobianstructure(auxdata)
     J = zeros((N_x + 2)*N_steps, (N_x+N_u)*N_steps + 1);
     J(1:N_x, 1:(N_x+N_u)) = [I, B];    
     
-    J(N_x*N_steps + 1, 2) = 1;
-    J(N_x*N_steps + 2, 2) = 1;    
-    
     for i = 2:N_steps
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
         J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [I, B];
-        
-        J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
-        J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
     end
     
+    
+    % Slack constraints
+    for i = 1:N_steps
+        J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
+        J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
+    end
+
     J(N_x*N_steps + 1 : end, end) = ones(N_steps*2, 1);
 
+    
     J = sparse(J);
 
 % ------------------------------------------------------------------
@@ -151,10 +153,6 @@ function J = jacobian(x, auxdata)
     B = B_curv_kin(x0, u0, kappa) * dt;
     J(1:N_x, 1:(N_x+N_u)) = [-I, B];       
     
-    % Slack variables
-    J(N_x*N_steps + 1, 2) = 1;
-    J(N_x*N_steps + 2, 2) = 1;
-    
     for i = 2:N_steps
         x_i = x((i-2)*(N_x+N_u) + 1 : (i-2)*(N_x+N_u) + N_x);
         u_i = x((i-1)*(N_x+N_u) + N_x + 1 : i*(N_x+N_u));
@@ -164,12 +162,16 @@ function J = jacobian(x, auxdata)
         
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
         J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];
-        
-        % Slack variables
-        J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
-        J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
     end
     
+    
+    % Slack constraints
+    for i = 1:N_steps
+        J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
+        J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
+    end
+
     J(N_x*N_steps + 1 : end, end) = repmat([-1; 1], N_steps, 1);
+
     
     J = sparse(J);
