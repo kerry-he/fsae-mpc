@@ -59,9 +59,9 @@ function [x, info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, d
     funcs.jacobianstructure = @jacobianstructure; %Structure of Jacobian (Optional)
 
     % Run IPOPT.
-    x_init(1:end-(N_x+N_u)) = x_init(N_x+N_u+1:end);
-    x_init(end-(N_x+N_u)+1 : end-(N_u)) = x_init(end-(N_x+N_u)+1 : end-(N_u))...
-        + dt*f_curv_kin(x_init(end-(N_x+N_u)+1 : end-(N_u)), x_init(end-N_u+1 : end), kappa);
+    x_init(1:end-(N_x+N_u)-1) = x_init(N_x+N_u+1:end-1);
+    x_init(end-(N_x+N_u) : end-N_u-1) = x_init(end-(N_x+N_u) : end-N_u-1)...
+        + dt*f_curv_kin(x_init(end-(N_x+N_u) : end-N_u-1), x_init(end-N_u : end-1), kappa);
     [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
     
 % ------------------------------------------------------------------
@@ -102,6 +102,7 @@ function c = constraints(x, auxdata)
         c((i-1)*N_x + 1:i*N_x) = x_i + dt*f - x_i_1;
         x_i = x_i_1;
         
+        % Soft constraints
         c(N_x*N_steps + 1 + 2*(i-1)) = x_i(2) - x(end);
         c(N_x*N_steps + 2 + 2*(i-1)) = x_i(2) + x(end);        
     end
@@ -134,6 +135,7 @@ function J = jacobianstructure(auxdata)
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
         J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [I, B];
         
+        % Soft constraints
         J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
         J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
     end
@@ -155,7 +157,7 @@ function J = jacobian(x, auxdata)
     B = B_curv_kin(x0, u0, kappa) * dt;
     J(1:N_x, 1:(N_x+N_u)) = [-I, B];       
     
-    % Slack variables
+    % Soft constraints
     J(N_x*N_steps + 1, 2) = 1;
     J(N_x*N_steps + 2, 2) = 1;    
     
@@ -192,7 +194,7 @@ function J = jacobian(x, auxdata)
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
         J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];
         
-        % Slack variables
+        % Soft constraints
         J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
         J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
     end

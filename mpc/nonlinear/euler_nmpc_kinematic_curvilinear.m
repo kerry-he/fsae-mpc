@@ -60,9 +60,9 @@ function [x, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d,
     funcs.jacobianstructure = @jacobianstructure; %Structure of Jacobian (Optional)
 
     % Run IPOPT.
-    x_init(1:end-(N_x+N_u)) = x_init(N_x+N_u+1:end);
-    x_init(end-(N_x+N_u)+1 : end-(N_u)) = x_init(end-(N_x+N_u)+1 : end-(N_u))...
-        + dt*f_curv_kin(x_init(end-(N_x+N_u)+1 : end-(N_u)), x_init(end-N_u+1 : end), kappa);
+    x_init(1:end-(N_x+N_u)-1) = x_init(N_x+N_u+1:end-1);
+    x_init(end-(N_x+N_u) : end-N_u-1) = x_init(end-(N_x+N_u) : end-N_u-1)...
+        + dt*f_curv_kin(x_init(end-(N_x+N_u) : end-N_u-1), x_init(end-N_u : end-1), kappa);
     [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
     
 % ------------------------------------------------------------------
