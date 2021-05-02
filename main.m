@@ -38,6 +38,10 @@ x_ref = zeros(N_x, N_steps);
 x_ref(4, :) = TARGET_VEL;
 u_ref = zeros(N_u, N_steps);
 
+%% Set up actuator controllers
+steering_pid_settings = {80.0, 0, 0, 0.8};
+steering_pid_status = {0, 0};
+
 %% Simulate MPC
 N_simulation = 350;
 x = zeros(5, 1);
@@ -47,6 +51,7 @@ x_mpc = [x_opt; zeros(N_u, N_steps)];
 x_mpc = [x_mpc(:); 0];
 ipopt_info = [];
 x0 = zeros(N_x, 1);
+cpu_time = zeros(N_simulation, 1);
 
 x_history = zeros(N_simulation, 5);
 u_opt_history = zeros(N_simulation, N_u);
@@ -70,31 +75,38 @@ for i = 1:N_simulation
     % Solve MPC problem
     if MODE == "LTV-MPC"
         % Solve linear time varying MPC problem
+        tic
         [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, kappa_d, dt, ...
             reshape(x_opt, N_x, N_steps), reshape(u_opt(1:end-1), N_u, N_steps), QP);
+        
+        cpu_time(i) = toc;
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
-        [x_mpc, ipopt_info] = rk4_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_mpc, ipopt_info);
+        [x_mpc, ipopt_info] = rk2_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_mpc, ipopt_info);
         x_opt = x_mpc([1:7:end-1; 2:7:end-1; 3:7:end-1; 4:7:end-1; 5:7:end-1]);
         x_opt = x_opt(:);
         u_opt = x_mpc([6:7:end-1; 7:7:end-1;]);
         u_opt = u_opt(:);
+        
+        cpu_time(i) = ipopt_info.cpu;
     end
 
     if VISUALISE
         visualise_mpc(x, x_opt, u_opt, x_spline, y_spline, dl, dt)
     end
 
-    [x_pred, y_pred, ~] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
-        x_opt(2:N_x:end), x_opt(3:N_x:end), x_spline, y_spline, dl);
-    x_cart_pred = kinematic_bicycle_horizon(x, [u_opt(1:2:N_u*N_steps), ...
-        u_opt(2:2:N_u*N_steps)]', dt);
-    
-    cpu_time(i) = ipopt_info.cpu;
+%     [x_pred, y_pred, ~] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
+%         x_opt(2:N_x:end), x_opt(3:N_x:end), x_spline, y_spline, dl);
+%     x_cart_pred = kinematic_bicycle_horizon(x, [u_opt(1:2:N_u*N_steps), ...
+%         u_opt(2:2:N_u*N_steps)]', dt);
+%    
 %     error(i) = norm([x_pred, y_pred]' - x_cart_pred(1:2, 2:end));
     
     % Update vehicle model
-    x = kinematic_bicycle(x, [u_opt(1); u_opt(2)], dt);
+    for j = 1:10
+        [steer_rate, steering_pid_status] = pid_controller(x_opt(5), x(5), steering_pid_settings, steering_pid_status);
+        x = kinematic_bicycle(x, [u_opt(1); steer_rate], dt/10);
+    end
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:5)';
