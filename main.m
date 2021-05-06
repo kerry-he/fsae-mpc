@@ -33,7 +33,7 @@ N_steps = 40;
 dt = 0.05;
 
 % Sample parameters
-TARGET_VEL = 5;
+TARGET_VEL = 20;
 x_ref = zeros(N_x, N_steps);
 x_ref(4, :) = TARGET_VEL;
 u_ref = zeros(N_u, N_steps);
