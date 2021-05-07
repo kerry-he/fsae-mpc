@@ -51,6 +51,7 @@ x = zeros(7, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
 u_opt = zeros(N_u*N_steps+1, 1);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
+% x_mpc = repmat([0; 0; 0; 20; 0; 0; 0], N_steps + 1, 1);
 x_mpc = [x_mpc(:); 0];
 ipopt_info = [];
 x0 = zeros(N_x, 1);
