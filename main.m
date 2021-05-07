@@ -46,7 +46,7 @@ steer_pid_settings = {80.0, 0, 0, 0.8};
 steer_pid_status = {0, 0};
 
 %% Simulate MPC
-N_simulation = 2000;
+N_simulation = 500;
 x = zeros(7, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
 u_opt = zeros(N_u*N_steps+1, 1);
