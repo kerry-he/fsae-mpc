@@ -1,4 +1,4 @@
-function [H, f] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft)
+function [H, f, const] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft)
 %GENERATE_QP Creates quadratic programming parameters for a given LTV
 %system
 %   INPUTS:
@@ -28,6 +28,8 @@ function [H, f] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, 
     H = 2 * (B_bar' * Q_bar * B_bar + R_bar);
     f = 2 * B_bar' * Q_bar * (A_bar * x0 + d_bar - x_ref(:));
     f(end) = R_soft;
+    
+    const = (A_bar*x0+d_bar)'*Q_bar*(A_bar*x0+d_bar);
     
 end
 

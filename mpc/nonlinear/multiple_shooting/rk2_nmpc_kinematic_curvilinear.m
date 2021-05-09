@@ -39,8 +39,8 @@ function [x, info] = rk2_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, d
     % The constraint functions are bounded from below by zero.
     options.lb = [repmat([-inf; -inf; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
     options.ub = [repmat([inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); inf]; % Upper bound on optimization variable
-    options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -1.0], N_steps, 1); repmat([-inf; -5.0], N_steps, 1)]; % Lower bound on constraint function
-    options.cu = [zeros(N_x*N_steps, 1); repmat([1.0; inf], N_steps, 1); repmat([5.0; inf], N_steps, 1)]; % Upper bound on constraint function
+    options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps, 1); repmat([-inf; -5.0], N_steps, 1)]; % Lower bound on constraint function
+    options.cu = [zeros(N_x*N_steps, 1); repmat([0.75; inf], N_steps, 1); repmat([5.0; inf], N_steps, 1)]; % Upper bound on constraint function
     
     % Set IPOPT options
     options.ipopt.print_level           = 0;

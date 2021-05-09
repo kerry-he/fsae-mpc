@@ -46,16 +46,20 @@ steer_pid_settings = {80.0, 0, 0, 0.8};
 steer_pid_status = {0, 0};
 
 %% Simulate MPC
-N_simulation = 500;
+N_simulation = 1000;
 x = zeros(7, 1);
 x_opt = reshape(x_ref, N_x, N_steps);
 u_opt = zeros(N_u*N_steps+1, 1);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
-% x_mpc = repmat([0; 0; 0; 20; 0; 0; 0], N_steps + 1, 1);
+% x_mpc = repmat([0; 0; 0; 20; 0; 0; 0], N_steps*2 + 1, 1);
 x_mpc = [x_mpc(:); 0];
 ipopt_info = [];
 x0 = zeros(N_x, 1);
+
+n_list = zeros(N_simulation, 1);
+exit_status = zeros(N_simulation, 1);
 cpu_time = zeros(N_simulation, 1);
+objective = zeros(N_simulation, 1);
 
 x_history = zeros(N_simulation, 7);
 u_opt_history = zeros(N_simulation, N_u);
@@ -72,6 +76,11 @@ for i = 1:N_simulation
     % Calculate coordinates in curvilinear frame
     [s, n, mu] = cartesian_to_curvilinear(x(1), x(2), x(3), x_spline, y_spline, dl, x_opt(1));
     x0 = [s; n; mu; norm(x(4:5)) ; x(7)];
+    
+    n_list(i) = n;
+    if s >= L
+        break
+    end
         
     % Define new reference points
     x_ref(1, :) = x0(1)+TARGET_VEL*dt : TARGET_VEL*dt : x0(1)+TARGET_VEL*dt*N_steps;
@@ -80,9 +89,11 @@ for i = 1:N_simulation
     if MODE == "LTV-MPC"
         % Solve linear time varying MPC problem
         tic
-        [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, kappa_d, dt, ...
+        [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, kappa_d, dt, ...
             reshape(x_opt, N_x, N_steps), reshape(u_opt(1:end-1), N_u, N_steps), QP);
         
+        exit_status(i) = exitflag;
+        objective(i) = fval;        
         cpu_time(i) = toc;
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
@@ -92,27 +103,20 @@ for i = 1:N_simulation
         u_opt = x_mpc([6:7:end-1; 7:7:end-1;]);
         u_opt = u_opt(:);
         
+        exit_status(i) = ipopt_info.status;
+        objective(i) = ipopt_info.objective;
         cpu_time(i) = ipopt_info.cpu;
     end
 
     if VISUALISE
         visualise_mpc(x, x_opt, u_opt, x_spline, y_spline, dl, dt)
     end
-
-%     [x_pred, y_pred, ~] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
-%         x_opt(2:N_x:end), x_opt(3:N_x:end), x_spline, y_spline, dl);
-%     x_cart_pred = kinematic_bicycle_horizon(x, [u_opt(1:2:N_u*N_steps), ...
-%         u_opt(2:2:N_u*N_steps)]', dt);
-%    
-%     error(i) = norm([x_pred, y_pred]' - x_cart_pred(1:2, 2:end));
     
     % Update vehicle model
     for j = 1:10
-        [vel_rate, vel_pid_status] = pid_controller(x_opt(4), x(4), vel_pid_settings, vel_pid_status);
-        [steer_rate, steer_pid_status] = pid_controller(x_opt(5), x(7), steer_pid_settings, steer_pid_status);
+        [vel_rate, vel_pid_status] = pid_controller(x_opt(9), x(4), vel_pid_settings, vel_pid_status);
+        [steer_rate, steer_pid_status] = pid_controller(x_opt(10), x(7), steer_pid_settings, steer_pid_status);
         x = integrate_cart_dyn(x, [vel_rate; steer_rate], dt/10);
-        
-        temp = [temp; x(4)];
     end
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
@@ -126,6 +130,14 @@ end
 if MODE == "LTV-MPC"
 	qpOASES_sequence('c', QP);
 end
+
+%% Metrics
+fprintf('Lap time: %f\n', (i-1)*dt)
+fprintf('Track violation: %f\n', sum(abs(n_list(abs(n_list)>0.75)) - 0.75) * dt)
+fprintf('Average CPU time: %.8f\n', mean(cpu_time(1:i-1)))
+fprintf('Max CPU time: %.8f\n', max(cpu_time(1:i-1)))
+fprintf('Abnormal exits: %.8f%%\n', sum(exit_status(1:i-1)~=0)/(i-1)*100)
+fprintf('Optimal value: %.8f\n', mean(objective(1:i-1)))
 
 %% Plot results
 figure(1)

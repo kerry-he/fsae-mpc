@@ -31,10 +31,18 @@ function [x, info] = trapezoidal_nmpc_kinematic_curvilinear(x0, x_ref, kappa, ka
 
     % Defining cost weights
     Q = [5; 250; 2000; 0; 0];
-    Q_terminal = Q * 10;
-    R = [10, 10];
+    Q_terminal = 10;
+    R = [10; 10];
     
-    Q_vec = [repmat([Q(:); R(:)], N_steps - 1, 1); Q_terminal(:); R(:)];
+    Q_factor = [1/2, ones(1, N_steps-3), (1/2+Q_terminal), Q_terminal];
+    R_factor = [1/2, ones(1, N_steps-2), 1/2];
+    Q_factor = repmat(Q_factor, N_x, 1);
+    R_factor = repmat(R_factor, N_u, 1);
+    
+    Q = Q .* Q_factor;
+    R = R .* R_factor;
+    
+    Q_vec = [Q; R]; Q_vec = Q_vec(:);
     Q_bar = spdiags(Q_vec, 0, length(Q_vec), length(Q_vec));
     
     % Set up the auxiliary data.
@@ -43,8 +51,8 @@ function [x, info] = trapezoidal_nmpc_kinematic_curvilinear(x0, x_ref, kappa, ka
     % The constraint functions are bounded from below by zero.
     options.lb = [repmat([-inf; -inf; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
     options.ub = [repmat([inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); inf]; % Upper bound on optimization variable
-    options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -1.0], N_steps, 1); repmat([-inf; -5.0], N_steps, 1)]; % Lower bound on constraint function
-    options.cu = [zeros(N_x*N_steps, 1); repmat([1.0; inf], N_steps, 1); repmat([5.0; inf], N_steps, 1)]; % Upper bound on constraint function
+    options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps, 1); repmat([-inf; -5.0], N_steps, 1)]; % Lower bound on constraint function
+    options.cu = [zeros(N_x*N_steps, 1); repmat([0.75; inf], N_steps, 1); repmat([5.0; inf], N_steps, 1)]; % Upper bound on constraint function
     
     % Set IPOPT options
     options.ipopt.print_level           = 0;
