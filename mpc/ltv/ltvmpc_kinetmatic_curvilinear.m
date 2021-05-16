@@ -1,4 +1,4 @@
-function [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_lin, u_lin, QP)
+function [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, x_lin, u_lin, QP)
 %MPC_KINETMATIC_CURVILINEAR Computes a LTV-MPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame
 %   INPUTS:
@@ -19,24 +19,32 @@ function [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, ka
     % Define constraints
     state_idx = [4, 5];
     soft_idx = [2];
-    x_lb = repmat([0, -0.4, -1.0], N_steps, 1);
-    x_ub = repmat([1e10, 0.4, 1.0], N_steps, 1);
+    
+    x_lb = repmat([0, -0.4, -0.75], N_steps, 1);    
+    x_ub = repmat([inf, 0.4, 0.75], N_steps, 1);
+
+%     lr = 0.6183;
+%     lf = 0.8672;
+%     v = x_lin(4, :);
+%     x_lb(:, 2) = max(x_lb(:, 2), -5*(lf+lr)./v(:).^2);
+%     x_ub(:, 2) = min(x_ub(:, 2), 5*(lf+lr)./v(:).^2);
+%     
     x_lb = x_lb(:); x_ub = x_ub(:);
 
     u_lb = [repmat([-10; -0.4], N_steps, 1); 0];
-    u_ub = [repmat([10; 0.4], N_steps, 1); 1e10];
+    u_ub = [repmat([10; 0.4], N_steps, 1); inf];
 
     % Define cost weights
-    Q = [5; 500; 2000; 0; 0];
+    Q = [5; 250; 2000; 0; 0];
     Q_terminal = Q * 10;
-    R = [1, 1];
+    R = [10, 10];
     R_soft = 1e8;
         
     % Define QP problem
-    [A, B, d] = rk4_kinematic_curvilinear(x_lin, u_lin, kappa, dt);
+    [A, B, d] = rk2_kinematic_curvilinear(x_lin, u_lin, kappa, dt);
     [A_bar, B_bar, d_bar] = sequential_integration(A, B, d, dt);
-    [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, x_lb, x_ub, state_idx, soft_idx);
-    [H, f] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft);
+    [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, x_lb, x_ub, state_idx, soft_idx, x_lin);
+    [H, f, const] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft);
     
     % Solve QP problem
 %     options = qpOASES_options('MPC');
@@ -52,6 +60,7 @@ function [u_opt, x_opt, QP] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, ka
         display(exitflag)
     end
     x_opt = A_bar*x0 + B_bar*u_opt + d_bar;
+    fval = fval + const;
 
 end
 

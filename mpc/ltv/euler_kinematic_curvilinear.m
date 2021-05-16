@@ -1,4 +1,4 @@
-function [A, B, d] = euler_kinematic_curvilinear(x, u, kappa, kappa_d)
+function [A, B, d] = euler_kinematic_curvilinear(x, u, kappa, ~)
 %EULER_KINEMATIC_CURVILINEAR Linearises the dynamics of the kinematic
 %bicycle model using a curvilinear coordinate frame at a given setpoint
 %using first order Euler integration
@@ -23,7 +23,7 @@ function [A, B, d] = euler_kinematic_curvilinear(x, u, kappa, kappa_d)
     
     for i = 1:N_steps
         % Populate matrices
-        A(:, :, i) = A_curv_kin(x(:, i), u(:, i), kappa, kappa_d);
+        A(:, :, i) = A_curv_kin(x(:, i), u(:, i), kappa);
         B(:, :, i) = B_curv_kin(x(:, i), u(:, i), kappa); 
         f = f_curv_kin(x(:, i), u(:, i), kappa);
         d(:, i) = f - A(:, :, i)*x(:, i) - B(:, :, i)*u(:, i);
