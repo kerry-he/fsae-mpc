@@ -16,15 +16,14 @@ x_spline = make_spline_periodic(x);
 y_spline = make_spline_periodic(y);
 [x_spline, y_spline, dl, L] = arclength_reparam(x_spline, y_spline, 100, true);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
-kappa_d = @(s) interpolate_curvature_d(s, x_spline, y_spline, dl); 
 
 % [x, info, ds, N] = minimum_time_planner(x_spline, y_spline, dl, L);
 % [x_pred, y_pred, ~] = curvilinear_to_cartesian(0:ds:ds*(N-1), ...
 %     x(1:6:end), x(1:6:end), x_spline, y_spline, dl);
 
 %% Set MPC parameters
-MODE = "NMPC";
-VISUALISE = true;
+MODE = "LTV-MPC";
+VISUALISE = false;
 
 % Define time horizon
 N_x = 5;
@@ -60,6 +59,7 @@ n_list = zeros(N_simulation, 1);
 exit_status = zeros(N_simulation, 1);
 cpu_time = zeros(N_simulation, 1);
 objective = zeros(N_simulation, 1);
+slack = zeros(N_simulation, 1);
 
 x_history = zeros(N_simulation, 7);
 u_opt_history = zeros(N_simulation, N_u);
@@ -89,15 +89,17 @@ for i = 1:N_simulation
     if MODE == "LTV-MPC"
         % Solve linear time varying MPC problem
         tic
-        [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, kappa_d, dt, ...
+        [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, ...
             reshape(x_opt, N_x, N_steps), reshape(u_opt(1:end-1), N_u, N_steps), QP);
         
         exit_status(i) = exitflag;
         objective(i) = fval;        
         cpu_time(i) = toc;
+        slack(i) = u_opt(end);
+        
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
-        [x_mpc, ipopt_info] = rk2_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_mpc, ipopt_info);
+        [x_mpc, ipopt_info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_mpc, ipopt_info);
         x_opt = x_mpc([1:7:end-1; 2:7:end-1; 3:7:end-1; 4:7:end-1; 5:7:end-1]);
         x_opt = x_opt(:);
         u_opt = x_mpc([6:7:end-1; 7:7:end-1;]);
@@ -106,6 +108,7 @@ for i = 1:N_simulation
         exit_status(i) = ipopt_info.status;
         objective(i) = ipopt_info.objective;
         cpu_time(i) = ipopt_info.cpu;
+        slack(i) = x_mpc(end);
     end
 
     if VISUALISE
@@ -114,8 +117,8 @@ for i = 1:N_simulation
     
     % Update vehicle model
     for j = 1:10
-        [vel_rate, vel_pid_status] = pid_controller(x_opt(9), x(4), vel_pid_settings, vel_pid_status);
-        [steer_rate, steer_pid_status] = pid_controller(x_opt(10), x(7), steer_pid_settings, steer_pid_status);
+        [vel_rate, vel_pid_status] = pid_controller(x_opt(4), x(4), vel_pid_settings, vel_pid_status);
+        [steer_rate, steer_pid_status] = pid_controller(x_opt(5), x(7), steer_pid_settings, steer_pid_status);
         x = integrate_cart_dyn(x, [vel_rate; steer_rate], dt/10);
     end
     x_history(i, :) = x';
@@ -132,12 +135,26 @@ if MODE == "LTV-MPC"
 end
 
 %% Metrics
-fprintf('Lap time: %f\n', (i-1)*dt)
-fprintf('Track violation: %f\n', sum(abs(n_list(abs(n_list)>0.75)) - 0.75) * dt)
-fprintf('Average CPU time: %.8f\n', mean(cpu_time(1:i-1)))
-fprintf('Max CPU time: %.8f\n', max(cpu_time(1:i-1)))
-fprintf('Abnormal exits: %.8f%%\n', sum(exit_status(1:i-1)~=0)/(i-1)*100)
-fprintf('Optimal value: %.8f\n', mean(objective(1:i-1)))
+COPY_FORMAT = true; 
+if COPY_FORMAT
+    fprintf('%f\n', (i-1)*dt)
+    fprintf('%f\n', sum(abs(n_list(abs(n_list)>0.75)) - 0.75) * dt)
+    fprintf('%f\n', max(abs(n_list(abs(n_list)>0.75)) - 0.75))
+    fprintf('%.8f\n', mean(cpu_time(1:i-1)))
+    fprintf('%.8f\n', max(cpu_time(1:i-1)))
+    fprintf('%.8f%%\n', sum(exit_status(1:i-1)~=0)/(i-1)*100)
+    fprintf('%.8f\n', mean(objective(slack(1:i-1)==0)))
+    fprintf('%.8f%%\n', sum(slack(1:i-1)~=0)/(i-1)*100)
+else
+    fprintf('Lap time: %f\n', (i-1)*dt)
+    fprintf('Track violation: %f\n', sum(abs(n_list(abs(n_list)>0.75)) - 0.75) * dt)
+    fprintf('Max track violation: %f\n', max(abs(n_list(abs(n_list)>0.75)) - 0.75))
+    fprintf('Average CPU time: %.8f\n', mean(cpu_time(1:i-1)))
+    fprintf('Max CPU time: %.8f\n', max(cpu_time(1:i-1)))
+    fprintf('Abnormal exits: %.8f%%\n', sum(exit_status(1:i-1)~=0)/(i-1)*100)
+    fprintf('Optimal value: %.8f\n', mean(objective(slack(1:i-1)==0)))
+    fprintf('Slack violations: %.8f%%\n', sum(slack(1:i-1)~=0)/(i-1)*100)    
+end
 
 %% Plot results
 figure(1)

@@ -29,7 +29,7 @@ function [H, f, const] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_termin
     f = 2 * B_bar' * Q_bar * (A_bar * x0 + d_bar - x_ref(:));
     f(end) = R_soft;
     
-    const = (A_bar*x0+d_bar)'*Q_bar*(A_bar*x0+d_bar);
+    const = (A_bar * x0 + d_bar - x_ref(:))'*Q_bar*(A_bar * x0 + d_bar - x_ref(:));
     
 end
 

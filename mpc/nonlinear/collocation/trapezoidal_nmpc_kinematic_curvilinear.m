@@ -1,4 +1,4 @@
-function [x, info] = trapezoidal_nmpc_kinematic_curvilinear(x0, x_ref, kappa, kappa_d, dt, x_init, info)
+function [x, info] = trapezoidal_nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_init, info)
 %NMPC_KINMATIC_CURVILINEAR Computes a NMPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame.
 %   INPUTS:
@@ -46,7 +46,7 @@ function [x, info] = trapezoidal_nmpc_kinematic_curvilinear(x0, x_ref, kappa, ka
     Q_bar = spdiags(Q_vec, 0, length(Q_vec), length(Q_vec));
     
     % Set up the auxiliary data.
-    options.auxdata = { x0, x_ref, kappa, kappa_d, Q_bar, N_x, N_u, N_steps, dt };
+    options.auxdata = { x0, x_ref, kappa, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
     options.lb = [repmat([-inf; -inf; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
@@ -79,21 +79,21 @@ function [x, info] = trapezoidal_nmpc_kinematic_curvilinear(x0, x_ref, kappa, ka
     
 % ------------------------------------------------------------------
 function f = objective(x, auxdata)
-    [~, x_ref, ~, ~, Q_bar, ~, ~, ~, ~] = deal(auxdata{:});
+    [~, x_ref, ~, Q_bar, ~, ~, ~, ~] = deal(auxdata{:});
     
     x_error = x(1:end-1) - x_ref(:);
     f = x_error' * Q_bar * x_error + x(end)*1e8;
 
 % ------------------------------------------------------------------
 function g = gradient(x, auxdata)
-    [~, x_ref, ~, ~, Q_bar, ~, ~, ~, ~] = deal(auxdata{:});
+    [~, x_ref, ~, Q_bar, ~, ~, ~, ~] = deal(auxdata{:});
     
     x_error = x(1:end-1) - x_ref(:);
     g = [2 * Q_bar * x_error; 1e8];
 
 % ------------------------------------------------------------------
 function c = constraints(x, auxdata)
-    [x0, ~, kappa, ~, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
+    [x0, ~, kappa, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
     % Preallocate
      c = zeros((N_x + 2 + 2)*N_steps, 1);
@@ -128,7 +128,7 @@ function c = constraints(x, auxdata)
 
 % ------------------------------------------------------------------
 function J = jacobianstructure(auxdata)  
-    [~, ~, ~, ~, ~, N_x, N_u, N_steps, ~] = deal(auxdata{:});
+    [~, ~, ~, ~, N_x, N_u, N_steps, ~] = deal(auxdata{:});
 
     % Define blocks of full Jacobian
     I = eye(N_x);
@@ -175,7 +175,7 @@ function J = jacobianstructure(auxdata)
 
 % ------------------------------------------------------------------
 function J = jacobian(x, auxdata)  
-    [~, ~, kappa, ~, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
+    [~, ~, kappa, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
     I = eye(N_x);
 
