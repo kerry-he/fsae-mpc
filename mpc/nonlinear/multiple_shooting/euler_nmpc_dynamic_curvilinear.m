@@ -39,17 +39,17 @@ function [x, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_in
 
     % The constraint functions are bounded from below by zero.
     options.lb = repmat([-inf; -inf; -inf; 0; -inf; -inf; -0.4; -2000.0; -0.4], N_steps, 1); % Lower bound on optimization variable
-    options.ub = repmat([-inf; -inf; -inf; inf; -inf; -inf; 0.4; 2000.0; 0.4], N_steps, 1); % Upper bound on optimization variable
+    options.ub = repmat([inf; inf; inf; inf; inf; inf; 0.4; 2000.0; 0.4], N_steps, 1); % Upper bound on optimization variable
     options.cl = zeros(N_x*N_steps, 1); % Lower bound on constraint function
     options.cu = zeros(N_x*N_steps, 1); % Upper bound on constraint function
     
     % Set IPOPT options
-%     options.ipopt.print_level           = 0;
-    options.ipopt.max_iter              = 500;
+    options.ipopt.print_level           = 0;
+    options.ipopt.max_iter              = 5000;
     options.ipopt.tol                   = 1e-6; % OR 1e-5
     options.ipopt.hessian_approximation = 'limited-memory';
-    options.ipopt.derivative_test       = 'first-order';
-    options.ipopt.derivative_test_tol   = 1e-2;
+%     options.ipopt.derivative_test       = 'first-order';
+%     options.ipopt.derivative_test_tol   = 1e-0;
     
     % Define callback functions
     funcs.objective         = @objective; % Objective function (Required)
@@ -60,9 +60,9 @@ function [x, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_in
     funcs.jacobianstructure = @jacobianstructure; %Structure of Jacobian (Optional)
 
     % Run IPOPT.
-    x_init(1:(N_x+N_u)*(N_steps-1)) = x_init(N_x+N_u+1:(N_x+N_u)*N_steps);
-    x_init(end+1-(N_x+N_u) : end-N_u) = x_init(end+1-(N_x+N_u) : end-N_u)...
-        + dt*f_curv_dyn(x_init(end+1-(N_x+N_u) : end-N_u), x_init(end+1-N_u : end), kappa);
+%     x_init(1:(N_x+N_u)*(N_steps-1)) = x_init(N_x+N_u+1:(N_x+N_u)*N_steps);
+%     x_init(end+1-(N_x+N_u) : end-N_u) = x_init(end+1-(N_x+N_u) : end-N_u)...
+%         + dt*f_curv_dyn(x_init(end+1-(N_x+N_u) : end-N_u), x_init(end+1-N_u : end), kappa);
     [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
     
 % ------------------------------------------------------------------
@@ -98,6 +98,8 @@ function c = constraints(x, auxdata)
         c((i-1)*N_x + 1:i*N_x) = x_i + dt * f - x_i_1;
         x_i = x_i_1;
     end
+    
+    1;
  
 % ------------------------------------------------------------------
 function J = jacobianstructure(auxdata)  

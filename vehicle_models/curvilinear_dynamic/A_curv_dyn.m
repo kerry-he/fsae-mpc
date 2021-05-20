@@ -16,7 +16,6 @@ function A = A_curv_dyn(x, ~, kappa)
     I = 200;
     lr = 0.6183;
     lf = 0.8672;
-    lr_ratio = lr / (lr + lf);
     
     g = 9.81;
 
@@ -24,14 +23,14 @@ function A = A_curv_dyn(x, ~, kappa)
     s       = x(1);
     n       = x(2);
     mu      = x(3);
-    x_d     = min(x(4), 0.01);
+    x_d     = max(x(4), 0.01);
     y_d     = x(5);
     theta_d = x(6);
     delta   = x(7); 
     
     % Slip angles
-    alpha_f = delta - atan((y_d + lf*theta_d) / (x_d + 0.01));
-    alpha_r = -atan((y_d - lr*theta_d) / (x_d + 0.01));
+    alpha_f = delta - atan((y_d + lf*theta_d) / x_d);
+    alpha_r = -atan((y_d - lr*theta_d) / x_d);
     
     % Mass distribution
     Fzf = m*g * lf / (lr+lf);
@@ -50,7 +49,7 @@ function A = A_curv_dyn(x, ~, kappa)
                 * C / (1 + (B*alpha_f - E*(B*alpha_f - atan(B*alpha_f)))^2) ...
                 * (B - E * (B - B / (1 + B^2 * alpha_f^2)));
             
-    Fcr_d = Fzf * D * cos(C * atan(B*alpha_r - E*(B*alpha_r - atan(B*alpha_r)))) ...
+    Fcr_d = Fzr * D * cos(C * atan(B*alpha_r - E*(B*alpha_r - atan(B*alpha_r)))) ...
                 * C / (1 + (B*alpha_r - E*(B*alpha_r - atan(B*alpha_r)))^2) ...
                 * (B - E * (B - B / (1 + B^2 * alpha_r^2)));            
     
@@ -79,11 +78,11 @@ function A = A_curv_dyn(x, ~, kappa)
     mu_thetad = 1;
     
     xd_xd = -Fcf_d * denom_vf2 * vf * sin(delta) / (m * x_d);
-    xd_yd = (Fcf_d * denom_vf2 / x_d + m * theta_d) / m;
-    xd_thetad = (Fcf_d * denom_vf2 * lf / x_d + m * y_d) / m;
+    xd_yd = (Fcf_d * denom_vf2 * sin(delta) / x_d + m * theta_d) / m;
+    xd_thetad = (Fcf_d * denom_vf2 * lf  * sin(delta) / x_d + m * y_d) / m;
     xd_delta = (-Fcf * cos(delta) - Fcf_d * sin(delta)) / m;
     
-    yd_xd = (Fcr_d * denom_vr2 * vr / x_d - Fcf_d * denom_vf2 * vf * cos(delta) / x_d - m * theta_d) / m;
+    yd_xd = (Fcr_d * denom_vr2 * vr / x_d + Fcf_d * denom_vf2 * vf * cos(delta) / x_d - m * theta_d) / m;
     yd_yd = (-Fcr_d  * denom_vr2 / x_d - Fcf_d * denom_vf2 / x_d * cos(delta)) / m;
     yd_thetad = (Fcr_d  * denom_vr2 * lr / x_d - Fcf_d * denom_vf2 * lf / x_d * cos(delta) - m * x_d) / m;
     yd_delta = (-Fcf * sin(delta) + Fcf_d * cos(delta)) / m;

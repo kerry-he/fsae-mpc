@@ -9,7 +9,7 @@ function visualise_mpc(x, x_opt, u_opt, x_P, y_P, dl, dt)
 %       dl - Scale factor (for arclength parameterised spline, otherwise =1)
 %       dt - Time step
 
-    N_x = 5;
+    N_x = 7;
     N_steps = length(x_opt) / N_x;
     N_u = round(length(u_opt) / N_steps);
 

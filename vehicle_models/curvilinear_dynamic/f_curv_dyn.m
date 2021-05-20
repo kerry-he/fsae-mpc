@@ -21,7 +21,7 @@ function f = f_curv_dyn(x, u, kappa)
     s       = x(1);
     n       = x(2);
     mu      = x(3);
-    x_d     = min(x(4), 0.01);
+    x_d     = max(x(4), 0.01);
     y_d     = x(5);
     theta_d = x(6);
     delta   = x(7);
@@ -34,8 +34,8 @@ function f = f_curv_dyn(x, u, kappa)
     denom_nk = 1 / (1 - n * k); 
     
     % Slip angles
-    alpha_f = delta - atan((y_d + lf*theta_d) / (x_d + 0.01));
-    alpha_r = -atan((y_d - lr*theta_d) / (x_d + 0.01));
+    alpha_f = delta - atan((y_d + lf*theta_d) / x_d);
+    alpha_r = -atan((y_d - lr*theta_d) / x_d);
     
     % Mass distribution
     Fzf = m*g * lf / (lr+lf);
