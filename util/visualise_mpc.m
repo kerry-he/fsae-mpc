@@ -31,11 +31,11 @@ function visualise_mpc(x, x_opt, u_opt, x_P, y_P, dl, dt)
     % Plot controls
     figure(2)
     subplot(2, 1, 1)
-    plot(x_opt(4:5:end))
+    plot(x_opt(4:7:end))
     ylim([0 25])
     ylabel('Velocity (m/s)')
     subplot(2, 1, 2)
-    plot(x_opt(5:5:end))
+    plot(x_opt(7:7:end))
     ylim([-0.4 0.4])
     ylabel('Steering angle (rad)')
 
