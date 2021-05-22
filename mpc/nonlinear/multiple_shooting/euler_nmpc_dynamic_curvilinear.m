@@ -38,8 +38,8 @@ function [x, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_in
     options.auxdata = { x0, x_ref, kappa, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = repmat([-inf; -inf; -inf; 0; -inf; -inf; -0.4; -2000.0; -0.4], N_steps, 1); % Lower bound on optimization variable
-    options.ub = repmat([inf; inf; inf; inf; inf; inf; 0.4; 2000.0; 0.4], N_steps, 1); % Upper bound on optimization variable
+    options.lb = repmat([-inf; -inf; -inf; 0; -inf; -inf; -0.4; -10.0; -0.4], N_steps, 1); % Lower bound on optimization variable
+    options.ub = repmat([inf; inf; inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); % Upper bound on optimization variable
     options.cl = zeros(N_x*N_steps, 1); % Lower bound on constraint function
     options.cu = zeros(N_x*N_steps, 1); % Upper bound on constraint function
     

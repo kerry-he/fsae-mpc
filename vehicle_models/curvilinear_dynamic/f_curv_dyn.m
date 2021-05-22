@@ -26,7 +26,7 @@ function f = f_curv_dyn(x, u, kappa)
     theta_d = x(6);
     delta   = x(7);
     
-    Fx      = u(1);
+    Fx      = u(1)*m;
     delta_d = u(2);       
     
 	% Define common constants
