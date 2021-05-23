@@ -52,7 +52,7 @@ x_opt = reshape(x_ref, N_x, N_steps);
 u_opt = zeros(N_u*N_steps, 1);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
 % x_mpc = repmat([0; 0; 0; 20; 0; 0; 0], N_steps*2 + 1, 1);
-x_mpc = x_mpc(:);
+x_mpc = [x_mpc(:); 0];
 ipopt_info = [];
 x0 = zeros(N_x, 1);
 
@@ -101,9 +101,9 @@ for i = 1:N_simulation
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
         [x_mpc, ipopt_info] = euler_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_mpc, ipopt_info);
-        x_opt = x_mpc([1:9:end; 2:9:end; 3:9:end; 4:9:end; 5:9:end; 6:9:end; 7:9:end]);
+        x_opt = x_mpc([1:9:end-1; 2:9:end-1; 3:9:end-1; 4:9:end-1; 5:9:end-1; 6:9:end-1; 7:9:end-1]);
         x_opt = x_opt(:);
-        u_opt = x_mpc([8:9:end; 9:9:end;]);
+        u_opt = x_mpc([8:9:end-1; 9:9:end-1;]);
         u_opt = u_opt(:);
         
         exit_status(i) = ipopt_info.status;
@@ -136,7 +136,7 @@ if MODE == "LTV-MPC"
 end
 
 %% Metrics
-COPY_FORMAT = true; 
+COPY_FORMAT = false; 
 if COPY_FORMAT
     fprintf('%f\n', (i-1)*dt)
     fprintf('%f\n', sum(abs(n_list(abs(n_list)>0.75)) - 0.75) * dt)

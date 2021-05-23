@@ -9,8 +9,6 @@ function B = B_curv_kin(~, ~, ~)
 %   OUTPUT:
 %       B - Jacobian of vehicle model with respect to control variables
 
-    m = 200;
-
     B = [0   0;
          0   0;
          0   0;
