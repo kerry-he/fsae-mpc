@@ -1,4 +1,4 @@
-function f = f_curv_dyn(x, u, kappa)
+function [f, Fcr] = f_curv_dyn(x, u, kappa)
 %F_CART_DYN The dynamic equations of the kinematic bicycle model in
 %Cartesian coodinates.
 %   INPUT:

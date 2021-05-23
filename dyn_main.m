@@ -8,7 +8,7 @@ addpath(genpath('vehicle_models'));
 addpath(genpath('optimizers'));
 
 %% Obtain track spline
-filename = "data/fsg2019.csv";
+filename = "data/fso2020.csv";
 [x, y, vx, vy, ax, ay, dt, rx, ry, lx, ly] = read_raceline_csv(filename);
 
 % Generate spline
@@ -122,6 +122,9 @@ for i = 1:N_simulation
         [steer_rate, steer_pid_status] = pid_controller(x_opt(7), x(7), steer_pid_settings, steer_pid_status);
         x = integrate_cart_dyn(x, [vel_rate; steer_rate], dt/10);
     end
+    [~, Fcr] = f_curv_dyn(x, [vel_rate; steer_rate], kappa);
+    Fcr_list(i) = Fcr;
+    Fx_list(i) = vel_rate;
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:7)';
