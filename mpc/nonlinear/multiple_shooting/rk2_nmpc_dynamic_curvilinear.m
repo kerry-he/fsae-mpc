@@ -1,5 +1,4 @@
-function [x, info] = git status
-(x0, x_ref, kappa, dt, x_init, info)
+function [x, info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, info)
 %NMPC_KINMATIC_CURVILINEAR Computes a NMPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame.
 %   INPUTS:
@@ -94,10 +93,11 @@ function c = constraints(x, auxdata)
         x_i_1 = x((i-1)*(N_x+N_u) + 1:(i-1)*(N_x+N_u) + N_x);
         u_i = x((i-1)*(N_x+N_u) + N_x + 1  :  i*(N_x+N_u));
         
-        % Calculate dynamic model
-        [f, Fcr] = f_curv_dyn(x_i, u_i, kappa);
+        % Perform RK4 step
+        [k1, Fcr] = f_curv_dyn(x_i, u_i, kappa);
+        k2 = f_curv_dyn(x_i + k1*dt / 2, u_i, kappa);
         
-        c((i-1)*N_x + 1:i*N_x) = x_i + dt * f - x_i_1;
+        c((i-1)*N_x + 1:i*N_x) = x_i + dt*k2 - x_i_1;
         x_i = x_i_1;
         
         
@@ -118,21 +118,8 @@ function J = jacobianstructure(auxdata)
 
     % Define blocks of full Jacobian
     I = eye(N_x);
-    A = [1 1 1 1 1 0 0;
-         0 1 1 1 1 0 0;
-         0 1 1 1 1 1 0;
-         0 0 0 1 1 1 1;
-         0 0 0 1 1 1 1;
-         0 0 0 1 1 1 1;
-         0 0 0 0 0 0 1];
-     
-    B = [0 0;
-         0 0;
-         0 0;
-         1 0;
-         0 0;
-         0 0;
-         0 1];
+    A = ones(7);
+    B = ones(7, 2);
 
     % Fill out Jacobian
     J = zeros((N_x+2+1)*N_steps, (N_x+N_u)*N_steps+1);
@@ -185,21 +172,35 @@ function J = jacobian(x, auxdata)
         x_i = x((i-2)*(N_x+N_u) + 1 : (i-2)*(N_x+N_u) + N_x);
         u_i = x((i-1)*(N_x+N_u) + N_x + 1 : i*(N_x+N_u));
         
-        [A, Fcr, Fcr_d, vr, denom_vr2] = A_curv_dyn(x_i, u_i, kappa);
-        A = A * dt + I;
-        B = B_curv_dyn(x_i, u_i, kappa) * dt;
+        % Calculate RK4 slopes
+        k1 = f_curv_dyn(x_i, u_i, kappa);
+                
+        % Calculate RK4 partial derivatives w.r.t. states 
+        [dfdx1, Fcr, Fcr_d, vr, denom_vr2] = A_curv_dyn(x_i, u_i, kappa);
+        dfdx2 = A_curv_dyn(x_i + k1*dt / 2, u_i, kappa);
+        
+        dkdx1 = dfdx1;
+        dkdx2 = dfdx2 * (I + dkdx1*dt / 2);
+        
+        % Calculate RK4 partial derivatives w.r.t. controls
+        dkdu1 = B_curv_dyn(x_i, u_i, kappa);
+        dkdu2 = B_curv_dyn(x_i + k1*dt / 2, u_i, kappa) + dfdx2*dkdu1*dt / 2;
+        
+        % Calculate final matrices
+        A = I + dt * dkdx2;
+        B = dt * dkdu2;
         
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
-        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];
+        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];     
         
         
         % Friction constraints
         ac_max = 6.5330;
         al_max = 10.0; 
         lr = 0.6183;    
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 2*Fcr*Fcr_d*denom_vr2*vr/max(x_i(4), 0.01) / (200*ac_max)^2;  
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = -2*Fcr*Fcr_d*denom_vr2/max(x_i(4), 0.01) / (200*ac_max)^2; 
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 2*Fcr*Fcr_d*denom_vr2*lr/max(x_i(4), 0.01) / (200*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 2*Fcr*Fcr_d*denom_vr2*vr/max(x_i(4), 0.1) / (200*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = -2*Fcr*Fcr_d*denom_vr2/max(x_i(4), 0.1) / (200*ac_max)^2; 
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 2*Fcr*Fcr_d*denom_vr2*lr/max(x_i(4), 0.1) / (200*ac_max)^2;  
         J(N_x*N_steps + 2*N_steps + i, (i-1)*(N_x+N_u) + 8) = 2*u_i(1) / al_max^2; 
     end
     

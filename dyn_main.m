@@ -8,7 +8,7 @@ addpath(genpath('vehicle_models'));
 addpath(genpath('optimizers'));
 
 %% Obtain track spline
-filename = "data/fso2020.csv";
+filename = "data/fsg2019.csv";
 [x, y, vx, vy, ax, ay, dt, rx, ry, lx, ly] = read_raceline_csv(filename);
 
 % Generate spline
@@ -47,12 +47,16 @@ steer_pid_status = {0, 0};
 %% Simulate MPC
 N_simulation = 1000;
 x = zeros(7, 1);
-x(4) = 10;
+% x(4) = 0.1;
 x_opt = reshape(x_ref, N_x, N_steps);
 u_opt = zeros(N_u*N_steps, 1);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
-% x_mpc = repmat([0; 0; 0; 20; 0; 0; 0], N_steps*2 + 1, 1);
+x_mpc(1, :) = 10 * (dt:dt:dt*N_steps).^2/2;
+x_mpc(4, :) = 10*dt:10*dt:10*dt*N_steps;
+x_mpc(8, :) = 10;
+% x_mpc = repmat([0; 0; 0; 20; 0; 0; 0; 0; 0], N_steps + 1, 1);
 x_mpc = [x_mpc(:); 0];
+x_init = x_mpc;
 ipopt_info = [];
 x0 = zeros(N_x, 1);
 
@@ -84,7 +88,14 @@ for i = 1:N_simulation
     end
         
     % Define new reference points
-    x_ref(1, :) = x0(1)+TARGET_VEL*dt : TARGET_VEL*dt : x0(1)+TARGET_VEL*dt*N_steps;
+    if x(4) < TARGET_VEL
+        x_ref(4, :) = x0(4)+10*dt : 10*dt : x0(4)+10*dt*N_steps;
+        x_ref(4, :) = min(x_ref(4, :), TARGET_VEL);
+    else
+        x_ref(4, :) = x0(4)-10*dt : -10*dt : x0(4)-10*dt*N_steps;
+        x_ref(4, :) = max(x_ref(4, :), TARGET_VEL);
+    end
+    x_ref(1, :) = x0(1) + cumsum(x_ref(4, :)*dt);
     
     % Solve MPC problem
     if MODE == "LTV-MPC"
@@ -100,7 +111,7 @@ for i = 1:N_simulation
         
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
-        [x_mpc, ipopt_info] = euler_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_mpc, ipopt_info);
+        [x_mpc, ipopt_info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_mpc, ipopt_info);
         x_opt = x_mpc([1:9:end-1; 2:9:end-1; 3:9:end-1; 4:9:end-1; 5:9:end-1; 6:9:end-1; 7:9:end-1]);
         x_opt = x_opt(:);
         u_opt = x_mpc([8:9:end-1; 9:9:end-1;]);
@@ -124,7 +135,7 @@ for i = 1:N_simulation
     end
     [~, Fcr] = f_curv_dyn(x, [vel_rate; steer_rate], kappa);
     Fcr_list(i) = Fcr;
-    Fx_list(i) = vel_rate;
+    Fx_list(i) = u_opt(1);
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:7)';
