@@ -1,5 +1,4 @@
-function [x, info] = git status
-(x0, x_ref, kappa, dt, x_init, info)
+function [x, info] = euler_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, info)
 %NMPC_KINMATIC_CURVILINEAR Computes a NMPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame.
 %   INPUTS:
