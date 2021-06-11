@@ -21,21 +21,23 @@ function [f, Fcr] = f_curv_dyn(x, u, kappa)
     s       = x(1);
     n       = x(2);
     mu      = x(3);
-    x_d     = max(x(4), 0.1);
+    x_d     = x(4);
     y_d     = x(5);
     theta_d = x(6);
     delta   = x(7);
     
     Fx      = u(1)*m;
-    delta_d = u(2);       
+    delta_d = u(2);    
+    
+    x_d_hat = x_d + 5*exp(-x_d/5);
     
 	% Define common constants
     k = kappa(s);
     denom_nk = 1 / (1 - n * k); 
     
     % Slip angles
-    alpha_f = delta - atan((y_d + lf*theta_d) / x_d);
-    alpha_r = -atan((y_d - lr*theta_d) / x_d);
+    alpha_f = delta - atan((y_d + lf*theta_d) / x_d_hat);
+    alpha_r = -atan((y_d - lr*theta_d) / x_d_hat);
     
     % Mass distribution
     Fzf = m*g * lf / (lr+lf);

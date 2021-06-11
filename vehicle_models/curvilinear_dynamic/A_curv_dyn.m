@@ -23,14 +23,17 @@ function [A, Fcr, Fcr_d, vr, denom_vr2] = A_curv_dyn(x, ~, kappa)
     s       = x(1);
     n       = x(2);
     mu      = x(3);
-    x_d     = max(x(4), 0.1);
+    x_d     = x(4);
     y_d     = x(5);
     theta_d = x(6);
     delta   = x(7); 
     
+    x_d_hat = x_d + 5*exp(-x_d/5);
+    x_d_hat_d = 1 - exp(-x_d/5);
+    
     % Slip angles
-    alpha_f = delta - atan((y_d + lf*theta_d) / x_d);
-    alpha_r = -atan((y_d - lr*theta_d) / x_d);
+    alpha_f = delta - atan((y_d + lf*theta_d) / x_d_hat);
+    alpha_r = -atan((y_d - lr*theta_d) / x_d_hat);
     
     % Mass distribution
     Fzf = m*g * lf / (lr+lf);
@@ -56,8 +59,8 @@ function [A, Fcr, Fcr_d, vr, denom_vr2] = A_curv_dyn(x, ~, kappa)
 	% Define common constants
     k = kappa(s);
     denom_nk = 1 / (1 - n * k); 
-    vf = (y_d + lf*theta_d) / x_d;
-    vr = (y_d - lr*theta_d) / x_d;
+    vf = (y_d + lf*theta_d) / x_d_hat;
+    vr = (y_d - lr*theta_d) / x_d_hat;
     denom_vf2 = 1 / (1 + vf^2);
     denom_vr2 = 1 / (1 + vr^2);
     
@@ -77,19 +80,19 @@ function [A, Fcr, Fcr_d, vr, denom_vr2] = A_curv_dyn(x, ~, kappa)
     mu_yd = -s_yd * k;
     mu_thetad = 1;
     
-    xd_xd = -Fcf_d * denom_vf2 * vf * sin(delta) / (m * x_d);
-    xd_yd = (Fcf_d * denom_vf2 * sin(delta) / x_d + m * theta_d) / m;
-    xd_thetad = (Fcf_d * denom_vf2 * lf  * sin(delta) / x_d + m * y_d) / m;
+    xd_xd = -Fcf_d * denom_vf2 * vf * sin(delta) * x_d_hat_d / (m * x_d_hat);
+    xd_yd = (Fcf_d * denom_vf2 * sin(delta) / x_d_hat + m * theta_d) / m;
+    xd_thetad = (Fcf_d * denom_vf2 * lf  * sin(delta) / x_d_hat + m * y_d) / m;
     xd_delta = (-Fcf * cos(delta) - Fcf_d * sin(delta)) / m;
     
-    yd_xd = (Fcr_d * denom_vr2 * vr / x_d + Fcf_d * denom_vf2 * vf * cos(delta) / x_d - m * theta_d) / m;
-    yd_yd = (-Fcr_d  * denom_vr2 / x_d - Fcf_d * denom_vf2 / x_d * cos(delta)) / m;
-    yd_thetad = (Fcr_d  * denom_vr2 * lr / x_d - Fcf_d * denom_vf2 * lf / x_d * cos(delta) - m * x_d) / m;
+    yd_xd = (Fcr_d * denom_vr2 * vr * x_d_hat_d / x_d_hat + Fcf_d * denom_vf2 * vf * cos(delta) * x_d_hat_d / x_d_hat - m * theta_d) / m;
+    yd_yd = (-Fcr_d  * denom_vr2 / x_d_hat - Fcf_d * denom_vf2 / x_d_hat * cos(delta)) / m;
+    yd_thetad = (Fcr_d  * denom_vr2 * lr / x_d_hat - Fcf_d * denom_vf2 * lf / x_d_hat * cos(delta) - m * x_d_hat) / m;
     yd_delta = (-Fcf * sin(delta) + Fcf_d * cos(delta)) / m;
     
-    t_xd = (lf * Fcf_d * denom_vf2 * vf * cos(delta) / x_d - lr * Fcr_d * denom_vr2 * vr / x_d) / I;
-    t_yd = (-lf * Fcf_d * denom_vf2 * cos(delta) / x_d + lr * Fcr_d * denom_vr2 / x_d) / I;
-    t_thetad = (-lf * Fcf_d * denom_vf2 * lf * cos(delta) / x_d - lr * Fcr_d * denom_vr2 * lr / x_d) / I;
+    t_xd = (lf * Fcf_d * denom_vf2 * vf * cos(delta) * x_d_hat_d / x_d_hat - lr * Fcr_d * denom_vr2 * vr * x_d_hat_d / x_d_hat) / I;
+    t_yd = (-lf * Fcf_d * denom_vf2 * cos(delta) / x_d_hat + lr * Fcr_d * denom_vr2 / x_d_hat) / I;
+    t_thetad = (-lf * Fcf_d * denom_vf2 * lf * cos(delta) / x_d_hat - lr * Fcr_d * denom_vr2 * lr / x_d_hat) / I;
     t_delta = (-lf * Fcf * sin(delta) + lf * Fcf_d * cos(delta)) / I;
     
     % Populate matrices

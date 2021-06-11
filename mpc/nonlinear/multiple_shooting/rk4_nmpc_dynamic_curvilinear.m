@@ -27,9 +27,9 @@ function [x, info] = rk4_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, 
     x_ref = [x_ref; zeros(N_u, N_steps)];
 
     % Defining cost weights
-    Q = [1; 250; 2000; 0; 0; 0; 0];
+    Q = [5; 250; 2000; 0; 0; 0; 0];
     Q_terminal = Q * 10;
-    R = [0.05, 50];
+    R = [10, 10];
     
     Q_vec = [repmat([Q(:); R(:)], N_steps - 1, 1); Q_terminal(:); R(:)];
     Q_bar = spdiags(Q_vec, 0, length(Q_vec), length(Q_vec));
@@ -38,7 +38,7 @@ function [x, info] = rk4_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, 
     options.auxdata = { x0, x_ref, kappa, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = [repmat([-inf; -inf; -inf; 0; -inf; -inf; -0.4; -inf; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
+    options.lb = [repmat([-inf; -inf; -inf; 0.0; -inf; -inf; -0.4; -inf; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
     options.ub = [repmat([inf; inf; inf; inf; inf; inf; 0.4; inf; 0.4], N_steps, 1); inf]; % Upper bound on optimization variable
     options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps, 1); -inf*ones(N_steps, 1)]; % Lower bound on constraint function
     options.cu = [zeros(N_x*N_steps, 1); repmat([0.75; inf], N_steps, 1); ones(N_steps, 1)]; % Upper bound on constraint function 
@@ -46,7 +46,7 @@ function [x, info] = rk4_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, 
     % Set IPOPT options
     options.ipopt.print_level           = 0;
     options.ipopt.max_iter              = 5000;
-    options.ipopt.tol                   = 1e-5; % OR 1e-5
+    options.ipopt.tol                   = 1e-6; % OR 1e-5
     options.ipopt.hessian_approximation = 'limited-memory';
 %     options.ipopt.derivative_test       = 'first-order';
 %     options.ipopt.derivative_test_tol   = 1e-0;

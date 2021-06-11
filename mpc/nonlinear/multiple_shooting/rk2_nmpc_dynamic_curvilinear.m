@@ -1,5 +1,5 @@
 function [x, info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, info)
-%NMPC_KINMATIC_CURVILINEAR Computes a NMPC step for a kinematic bicycle
+%NMPC_dynMATIC_CURVILINEAR Computes a NMPC step for a dynematic bicycle
 %model using a curvilinear coordinate frame.
 %   INPUTS:
 %       x0 - Initial state
@@ -19,7 +19,6 @@ function [x, info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, 
         options.lambda = info.lambda;
     end
     
-
     % Define constants
     [N_x, N_steps] = size(x_ref);
     N_u = 2;
@@ -38,7 +37,7 @@ function [x, info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, 
     options.auxdata = { x0, x_ref, kappa, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = [repmat([-inf; -inf; -inf; 2.5; -inf; -inf; -0.4; -inf; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
+    options.lb = [repmat([-inf; -inf; -inf; 0.0; -inf; -inf; -0.4; -inf; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
     options.ub = [repmat([inf; inf; inf; inf; inf; inf; 0.4; inf; 0.4], N_steps, 1); inf]; % Upper bound on optimization variable
     options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps, 1); -inf*ones(N_steps, 1)]; % Lower bound on constraint function
     options.cu = [zeros(N_x*N_steps, 1); repmat([0.75; inf], N_steps, 1); ones(N_steps, 1)]; % Upper bound on constraint function 
@@ -46,11 +45,11 @@ function [x, info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, 
     % Set IPOPT options
     options.ipopt.print_level           = 0;
     options.ipopt.max_iter              = 5000;
-    options.ipopt.tol                   = 1e-5; % OR 1e-5
+    options.ipopt.tol                   = 1e-6; % OR 1e-5
     options.ipopt.hessian_approximation = 'limited-memory';
 %     options.ipopt.derivative_test       = 'first-order';
-%     options.ipopt.derivative_test_tol   = 1e-0;
-    
+%     options.ipopt.derivative_test_tol   = 1;
+
     % Define callback functions
     funcs.objective         = @objective; % Objective function (Required)
     funcs.gradient          = @gradient; % Gradient of objective (Required)
@@ -60,7 +59,7 @@ function [x, info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, 
     funcs.jacobianstructure = @jacobianstructure; %Structure of Jacobian (Optional)
 
     % Run IPOPT.
-    x_init(1:(N_x+N_u)*(N_steps-1)) = x_init(N_x+N_u+1:(N_x+N_u)*N_steps);
+    x_init(1:end-(N_x+N_u)-1) = x_init(N_x+N_u+1:end-1);
     x_init(end-(N_x+N_u) : end-N_u-1) = x_init(end-(N_x+N_u) : end-N_u-1)...
         + dt*f_curv_dyn(x_init(end-(N_x+N_u) : end-N_u-1), x_init(end-N_u : end-1), kappa);
     x_init(end) = 0;
@@ -85,14 +84,14 @@ function c = constraints(x, auxdata)
     [x0, ~, kappa, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
     % Preallocate
-    c = zeros((N_x+2+1)*N_steps, 1);
+    c = zeros((N_x + 2 + 1)*N_steps, 1);
     
     x_i = x0;
 
     for i = 1:N_steps
         x_i_1 = x((i-1)*(N_x+N_u) + 1:(i-1)*(N_x+N_u) + N_x);
         u_i = x((i-1)*(N_x+N_u) + N_x + 1  :  i*(N_x+N_u));
-        
+                
         % Perform RK4 step
         [k1, Fcr] = f_curv_dyn(x_i, u_i, kappa);
         k2 = f_curv_dyn(x_i + k1*dt / 2, u_i, kappa);
@@ -100,18 +99,16 @@ function c = constraints(x, auxdata)
         c((i-1)*N_x + 1:i*N_x) = x_i + dt*k2 - x_i_1;
         x_i = x_i_1;
         
-        
         % Soft constraints
         c(N_x*N_steps + 1 + 2*(i-1)) = x_i(2) - x(end);
         c(N_x*N_steps + 2 + 2*(i-1)) = x_i(2) + x(end);
         
-        
         % Friction constraints
         ac_max = 6.5330;
         al_max = 10.0;        
-        c(N_x*N_steps + 2*N_steps + i) = (Fcr / (200*ac_max))^2 + (u_i(1) / al_max)^2 - x(end);
+        c(N_x*N_steps + 2*N_steps + i) = (Fcr / (200*ac_max))^2 + (u_i(1) / al_max)^2 - x(end);        
     end
- 
+
 % ------------------------------------------------------------------
 function J = jacobianstructure(auxdata)  
     [~, ~, ~, ~, N_x, N_u, N_steps, ~] = deal(auxdata{:});
@@ -122,13 +119,13 @@ function J = jacobianstructure(auxdata)
     B = ones(7, 2);
 
     % Fill out Jacobian
-    J = zeros((N_x+2+1)*N_steps, (N_x+N_u)*N_steps+1);
+    J = zeros((N_x + 2 + 1)*N_steps, (N_x+N_u)*N_steps + 1);
     J(1:N_x, 1:(N_x+N_u)) = [I, B];    
     
     for i = 2:N_steps
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
         J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [I, B];
-    end  
+    end
     
     
     % Slack constraints
@@ -137,9 +134,9 @@ function J = jacobianstructure(auxdata)
         J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
     end
 
-    J(N_x*N_steps + 1 : N_x*N_steps + 2*N_steps, end) = ones(N_steps*2, 1);    
+    J(N_x*N_steps + 1 : N_x*N_steps + 2*N_steps, end) = ones(N_steps*2, 1);
     
-    
+
     %  Friction constraints
     J(N_x*N_steps + 2*N_steps + 1, 8) = 1;
     for i = 2:N_steps    
@@ -150,7 +147,7 @@ function J = jacobianstructure(auxdata)
     end        
     
     J(N_x*N_steps + 2*N_steps + 1 : end, end) = ones(N_steps, 1);       
-
+    
     
     J = sparse(J);
 
@@ -161,7 +158,7 @@ function J = jacobian(x, auxdata)
     I = eye(N_x);
 
     % Fill out Jacobian
-    J = zeros((N_x+2+1)*N_steps, (N_x+N_u)*N_steps+1);
+    J = zeros((N_x + 2 + 1)*N_steps, (N_x+N_u)*N_steps + 1);
     
     u0 = x(N_x + 1 : N_x+N_u);
     B = B_curv_dyn(x0, u0, kappa) * dt;
@@ -191,29 +188,28 @@ function J = jacobian(x, auxdata)
         B = dt * dkdu2;
         
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
-        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];     
+        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];
         
         
         % Friction constraints
         ac_max = 6.5330;
         al_max = 10.0; 
         lr = 0.6183;    
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 2*Fcr*Fcr_d*denom_vr2*vr/max(x_i(4), 0.1) / (200*ac_max)^2;  
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = -2*Fcr*Fcr_d*denom_vr2/max(x_i(4), 0.1) / (200*ac_max)^2; 
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 2*Fcr*Fcr_d*denom_vr2*lr/max(x_i(4), 0.1) / (200*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 2*Fcr*Fcr_d*denom_vr2*vr/max(x_i(4), 0.01) / (200*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = -2*Fcr*Fcr_d*denom_vr2/max(x_i(4), 0.01) / (200*ac_max)^2; 
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 2*Fcr*Fcr_d*denom_vr2*lr/max(x_i(4), 0.01) / (200*ac_max)^2;  
         J(N_x*N_steps + 2*N_steps + i, (i-1)*(N_x+N_u) + 8) = 2*u_i(1) / al_max^2; 
     end
     
     J(N_x*N_steps + 2*N_steps + 1 : end, end) = -ones(N_steps, 1); 
-    
-    
+
     % Slack constraints
     for i = 1:N_steps
         J(N_x*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;
         J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
     end
 
-    J(N_x*N_steps + 1 : N_x*N_steps + 2*N_steps, end) = repmat([-1; 1], N_steps, 1);        
+    J(N_x*N_steps + 1 : N_x*N_steps + 2*N_steps, end) = repmat([-1; 1], N_steps, 1);    
     
     
     J = sparse(J);
