@@ -1,4 +1,4 @@
-function [A, Fcr, Fcr_d, vr, denom_vr2] = A_curv_dyn(x, ~, kappa)
+function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d] = A_curv_dyn(x, ~, kappa)
 %F_CURV_KIN Calculates the Jacobian of f_curv_kin with respect to the state
 %variables
 %   INPUT:

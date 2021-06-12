@@ -182,7 +182,7 @@ function J = jacobian(x, auxdata)
         k3 = f_curv_dyn(x_i + k2*dt / 2, u_i, kappa);
                 
         % Calculate RK4 partial derivatives w.r.t. states 
-        [dfdx1, Fcr, Fcr_d, vr, denom_vr2] = A_curv_dyn(x_i, u_i, kappa);
+        [dfdx1, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d] = A_curv_dyn(x_i, u_i, kappa);
         dfdx2 = A_curv_dyn(x_i + k1*dt / 2, u_i, kappa);
         dfdx3 = A_curv_dyn(x_i + k2*dt / 2, u_i, kappa);
         dfdx4 = A_curv_dyn(x_i + k3*dt, u_i, kappa);
@@ -210,9 +210,9 @@ function J = jacobian(x, auxdata)
         ac_max = 6.5330;
         al_max = 10.0; 
         lr = 0.6183;    
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 2*Fcr*Fcr_d*denom_vr2*vr/max(x_i(4), 0.01) / (200*ac_max)^2;  
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = -2*Fcr*Fcr_d*denom_vr2/max(x_i(4), 0.01) / (200*ac_max)^2; 
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 2*Fcr*Fcr_d*denom_vr2*lr/max(x_i(4), 0.01) / (200*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 2*Fcr*Fcr_d*denom_vr2*vr*x_d_hat_d/x_d_hat / (200*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = -2*Fcr*Fcr_d*denom_vr2/x_d_hat / (200*ac_max)^2; 
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 2*Fcr*Fcr_d*denom_vr2*lr/x_d_hat / (200*ac_max)^2;  
         J(N_x*N_steps + 2*N_steps + i, (i-1)*(N_x+N_u) + 8) = 2*u_i(1) / al_max^2; 
     end
     
