@@ -23,12 +23,6 @@ function [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, 
     x_lb = repmat([0, -0.4, -0.75], N_steps, 1);    
     x_ub = repmat([inf, 0.4, 0.75], N_steps, 1);
 
-%     lr = 0.6183;
-%     lf = 0.8672;
-%     v = x_lin(4, :);
-%     x_lb(:, 2) = max(x_lb(:, 2), -5*(lf+lr)./v(:).^2);
-%     x_ub(:, 2) = min(x_ub(:, 2), 5*(lf+lr)./v(:).^2);
-%     
     x_lb = x_lb(:); x_ub = x_ub(:);
 
     u_lb = [repmat([-10; -0.4], N_steps, 1); 0];
@@ -43,7 +37,7 @@ function [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, 
     % Define QP problem
     [A, B, d] = rk2_kinematic_curvilinear(x_lin, u_lin, kappa, dt);
     [A_bar, B_bar, d_bar] = sequential_integration(A, B, d, dt);
-    [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, x_lb, x_ub, state_idx, soft_idx, x_lin);
+    [B_bar, xA, lbA, ubA] = kinematic_state_constraints(A_bar, B_bar, d_bar, x0, x_lb, x_ub, state_idx, soft_idx, x_lin);
     [H, f, const] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft);
     
     % Solve QP problem

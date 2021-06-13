@@ -22,7 +22,7 @@ kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl);
 %     x(1:6:end), x(1:6:end), x_spline, y_spline, dl);
 
 %% Set MPC parameters
-MODE = "NMPC";
+MODE = "LTV-MPC";
 VISUALISE = true;
 
 % Define time horizon
@@ -47,15 +47,15 @@ steer_pid_status = {0, 0};
 %% Simulate MPC
 N_simulation = 1000;
 x = zeros(7, 1);
-x(4) = 0.0;
+% x(4) = 5.0;
 x_opt = reshape(x_ref, N_x, N_steps);
-u_opt = zeros(N_u*N_steps, 1);
+u_opt = zeros(N_u*N_steps+4, 1);
 x_mpc = [x_opt; zeros(N_u, N_steps)];
 x_mpc(1, :) = 10 * (dt:dt:dt*N_steps).^2/2;
 x_mpc(4, :) = 10*dt:10*dt:10*dt*N_steps;
 x_mpc(8, :) = 10;
 % x_mpc = repmat([0; 0; 0; 20; 0; 0; 0; 0; 0], N_steps + 1, 1);
-x_mpc = [x_mpc(:); 0];
+x_mpc = x_mpc(:);
 x_init = x_mpc;
 ipopt_info = [];
 x0 = zeros(N_x, 1);
@@ -101,8 +101,11 @@ for i = 1:N_simulation
     if MODE == "LTV-MPC"
         % Solve linear time varying MPC problem
         tic
-        [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, ...
-            reshape(x_opt, N_x, N_steps), reshape(u_opt(1:end-1), N_u, N_steps), QP);
+        if i < 2
+            x_opt = x_ref;
+        end
+        [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, ...
+            reshape(x_opt, N_x, N_steps), reshape(u_opt(1:end-4), N_u, N_steps), QP);
         
         exit_status(i) = exitflag;
         objective(i) = fval;        
@@ -111,16 +114,16 @@ for i = 1:N_simulation
         
     elseif MODE == "NMPC"
         % Solve the nonlinear MPC problem
-        [x_mpc, ipopt_info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_mpc, ipopt_info);
-        x_opt = x_mpc([1:9:end-1; 2:9:end-1; 3:9:end-1; 4:9:end-1; 5:9:end-1; 6:9:end-1; 7:9:end-1]);
+        [x_mpc, slack_mpc, ipopt_info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_mpc, ipopt_info);
+        x_opt = x_mpc([1:9:end; 2:9:end; 3:9:end; 4:9:end; 5:9:end; 6:9:end; 7:9:end]);
         x_opt = x_opt(:);
-        u_opt = x_mpc([8:9:end-1; 9:9:end-1;]);
+        u_opt = x_mpc([8:9:end; 9:9:end;]);
         u_opt = u_opt(:);
         
         exit_status(i) = ipopt_info.status;
         objective(i) = ipopt_info.objective;
         cpu_time(i) = ipopt_info.cpu;
-        slack(i) = x_mpc(end);
+        slack(i) = slack_mpc(end);
     end
 
     if VISUALISE

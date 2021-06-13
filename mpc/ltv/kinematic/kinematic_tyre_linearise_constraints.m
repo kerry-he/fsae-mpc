@@ -1,4 +1,4 @@
-function [A, lb, ub] = linearise_constraints(A_bar, B_bar, d_bar, x_lin, x0)
+function [A, lb, ub] = kinematic_tyre_linearise_constraints(A_bar, B_bar, d_bar, x_lin, x0)
 %LINEARISE_CONSTRAINTS Summary of this function goes here
 %   Detailed explanation goes here
 

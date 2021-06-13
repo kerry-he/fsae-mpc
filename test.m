@@ -1,4 +1,4 @@
-clear all; close all; clc;
+% clear all; close all; clc;
 % Define vehicle constants
 m = 200;
 I = 200;
@@ -12,10 +12,10 @@ g = 9.81;
 s       = 0;
 n       = 0;
 mu      = 0;
-x_d     = 0.01;
-y_d     = -5:0.0001:5;
+x_d     = 4;
+y_d     = 0.1;
 theta_d = 0;
-delta   = 0.2; 
+delta   = -0.4:0.001:0.4; 
 
 % Slip angles
 alpha_f = delta - atan((y_d + lf*theta_d) ./ x_d);
@@ -78,7 +78,7 @@ xd_thetad = (Fcf_d .* denom_vf2 * lf  .* sin(delta) ./ x_d + m * y_d) / m;
 xd_delta = (-Fcf .* cos(delta) - Fcf_d .* sin(delta)) / m;
 
 x = (0 - Fcf.*sin(delta) + m*y_d*theta_d) / m;
-xd = (x(2:end) - x(1:end-1))/0.01;
+xd = (x(2:end) - x(1:end-1))/0.001;
 
 yd_xd = (Fcr_d .* denom_vr2 .* vr ./ x_d + Fcf_d .* denom_vf2 .* vf .* cos(delta) ./ x_d - m * theta_d) / m;
 yd_yd = (-Fcr_d  .* denom_vr2 ./ x_d - Fcf_d .* denom_vf2 ./ x_d .* cos(delta)) / m;
