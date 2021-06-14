@@ -54,6 +54,6 @@ function [B_bar, xA, lbA, ubA] = dynamic_state_constraints(A_bar, B_bar, d_bar, 
     xA = [xA; A_ay];
     lbA = [lbA; lb_ay];
     ubA = [ubA; ub_ay];
-    xA(end-N_steps+1:end, end) = -ones(N_steps, 1);    
+    xA(end-length(A_ay)+1:end, end) = -ones(length(A_ay), 1);    
 end
 

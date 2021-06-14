@@ -1,4 +1,4 @@
-function [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, x_lin, u_lin, QP)
+function [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_lin, u_lin, QP)
 %MPC_KINETMATIC_CURVILINEAR Computes a LTV-MPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame
 %   INPUTS:
@@ -32,10 +32,10 @@ function [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, 
     Q = [5; 250; 2000; 0; 0; 0; 0];
     Q_terminal = Q * 10;
     R = [10, 10];
-    R_soft = [1e8; 1e5; 1e5; 1e5];
+    R_soft = [1e8; 1e6; 1e6; 1e4];
         
     % Define QP problem
-    [A, B, d] = euler_dynamic_curvilinear(x_lin, u_lin, kappa, dt);
+    [A, B, d] = rk4_dynamic_curvilinear(x_lin, u_lin, kappa, dt);
     [A_bar, B_bar, d_bar] = sequential_integration(A, B, d, dt);
     [B_bar, xA, lbA, ubA] = dynamic_state_constraints(A_bar, B_bar, d_bar, x0, x_lb, x_ub, state_idx, soft_idx, x_lin, u_lin, kappa);
     [H, f, const] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft);

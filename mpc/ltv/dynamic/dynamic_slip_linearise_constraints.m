@@ -11,9 +11,9 @@ function [A, lb, ub] = dynamic_slip_linearise_constraints(A_bar, B_bar, d_bar, x
     [N_u, ~] = size(u_lin);
     N_steps = N_temp / N_x;
 
-    % Friction ellipse constraint
-    % g(x) = v^2 * delta / (lr + lf)
-    % -5.0 <= g(x) <= 5.0
+    % Keep slip angles in linear region
+    % g(x) = alpha_f AND alpha_r
+    % -1.0 <= g(x) <= 1.0
     
     C_bar = zeros(N_steps*2, N_steps*N_x);
     D_bar = zeros(N_steps*2, N_steps*N_u);
@@ -23,17 +23,16 @@ function [A, lb, ub] = dynamic_slip_linearise_constraints(A_bar, B_bar, d_bar, x
         x = x_lin(:, i);
         u = u_lin(:, i);
         
-        [~, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_curv_dyn(x, u, kappa);
+        [~, ~, ~, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_curv_dyn(x, u, kappa);
         
         g0 = [-atan(vr);
               x(7) - atan(vf)];
         
         C = [0, 0, 0, denom_vr2*vr*x_d_hat_d/x_d_hat, -denom_vr2/x_d_hat, denom_vr2*lr/x_d_hat, 0;
-             
-             0, 0, 0, denom_vf2*vf*x_d_hat_d/x_d_hat, -denom_vf2/x_d_hat, -denom_vf2*lf/x_d_hat, 1;];
+             0, 0, 0, denom_vf2*vf*x_d_hat_d/x_d_hat, -denom_vf2/x_d_hat, -denom_vf2*lf/x_d_hat, 1];
          
         D = [0, 0;
-            0, 0];
+             0, 0];
 
         C_bar(2*i-1:i*2, (i-1)*N_x + 1 : i*N_x) = C;
         D_bar(2*i-1:i*2, (i-1)*N_u + 1 : i*N_u) = D;
