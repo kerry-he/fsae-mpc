@@ -19,7 +19,6 @@ function [x, slack, info] = euler_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt,
         options.lambda = info.lambda;
     end
     
-
     % Define constants
     [N_x, N_steps] = size(x_ref);
     N_u = 2;

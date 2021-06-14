@@ -1,4 +1,4 @@
-function [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, x_lin, u_lin, QP)
+function [u_opt, x_opt, QP, exitflag, fval, slack_opt] = ltvmpc_kinetmatic_curvilinear(x0, x_ref, kappa, dt, x_lin, u_lin, QP)
 %MPC_KINETMATIC_CURVILINEAR Computes a LTV-MPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame
 %   INPUTS:
@@ -53,7 +53,10 @@ function [u_opt, x_opt, QP, exitflag, fval] = ltvmpc_kinetmatic_curvilinear(x0, 
     if exitflag
         display(exitflag)
     end
+
+    slack_opt = u_opt(end-length(R_soft)+1:end);
     x_opt = A_bar*x0 + B_bar*u_opt + d_bar;
+    u_opt = u_opt(1:end-length(R_soft));
     fval = fval + const;
 
 end
