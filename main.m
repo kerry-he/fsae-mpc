@@ -22,7 +22,7 @@ kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl);
 %     x(1:6:end), x(1:6:end), x_spline, y_spline, dl);
 
 %% Setup MPC parameters
-MODE = "LTV-MPC";
+MODE = "MS-NMPC";
 MODEL = "DYNAMIC";
 VISUALISE = true;
 
@@ -47,10 +47,12 @@ x_mpc(1, :) = 10 * (dt:dt:dt*N_steps).^2/2; % Quadratic arc length
 x_mpc(4, :) = 10*dt:10*dt:10*dt*N_steps; % Linear velocity
 x_mpc(end-1, :) = 10; % Constant acceleration
 
+if MODE == "C-NMPC"
+    x_mpc = [x_mpc, x_mpc(:, end)];
+end
+
 x_opt = x_mpc(1:N_x, :);
 u_opt = x_mpc(end-N_u+1:end, :);
-
-% x_mpc = repmat([0; 0; 0; 20; 0; 0; 0; 0; 0], N_steps + 1, 1);
 
 ipopt_info = [];
 QP = 0;
@@ -127,14 +129,22 @@ for i = 1:N_simulation
         cpu_time(i) = toc;
         slack(i) = slack_opt(1);
         
-    elseif MODE == "NMPC"
+    else
         % Solve the nonlinear MPC problem
         if MODEL == "KINEMATIC"
-            [x_mpc, slack_mpc, ipopt_info] = rk2_nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_mpc(:), ipopt_info);
+            if MODE == "MS-NMPC"
+                [x_mpc, slack_mpc, ipopt_info] = rk2_nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_mpc(:), ipopt_info);
+            elseif MODE == "C-NMPC"
+                [x_mpc, slack_mpc, ipopt_info] = trapezoidal_nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_mpc(:), ipopt_info);
+            end
             x_opt = x_mpc([1:7:end; 2:7:end; 3:7:end; 4:7:end; 5:7:end]); x_opt = x_opt(:);
             u_opt = x_mpc([6:7:end; 7:7:end;]); u_opt = u_opt(:);            
         elseif MODEL == "DYNAMIC"
-            [x_mpc, slack_mpc, ipopt_info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_mpc(:), ipopt_info);
+            if MODE == "MS-NMPC"
+                [x_mpc, slack_mpc, ipopt_info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_mpc(:), ipopt_info);
+            elseif MODE == "C-NMPC"
+                [x_mpc, slack_mpc, ipopt_info] = trapezoidal_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_mpc(:), ipopt_info);
+            end            
             x_opt = x_mpc([1:9:end; 2:9:end; 3:9:end; 4:9:end; 5:9:end; 6:9:end; 7:9:end]); x_opt = x_opt(:);
             u_opt = x_mpc([8:9:end; 9:9:end;]); u_opt = u_opt(:);
         end
@@ -150,9 +160,17 @@ for i = 1:N_simulation
     end
     
     % Update vehicle model
+    if MODE == "C-NMPC"
+        v_ref = x_opt(4 + N_x);
+        delta_ref = x_opt(2 * N_x);
+    else
+        v_ref = x_opt(4);
+        delta_ref = x_opt(N_x);
+    end
+    
     for j = 1:10
-        [vel_rate, vel_pid_status] = pid_controller(x_opt(4), x(4), vel_pid_settings, vel_pid_status);
-        [steer_rate, steer_pid_status] = pid_controller(x_opt(N_x), x(7), steer_pid_settings, steer_pid_status);
+        [vel_rate, vel_pid_status] = pid_controller(v_ref, x(4), vel_pid_settings, vel_pid_status);
+        [steer_rate, steer_pid_status] = pid_controller(delta_ref, x(7), steer_pid_settings, steer_pid_status);
         x = integrate_cart_dyn(x, [vel_rate; steer_rate], dt/10);
     end
     [~, Fcr] = f_curv_dyn(x, [vel_rate; steer_rate], kappa);
