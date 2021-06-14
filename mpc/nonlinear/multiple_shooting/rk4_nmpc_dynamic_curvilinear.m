@@ -1,4 +1,4 @@
-function [x, slack, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, dt, x_init, info)
+function [x, slack, info] = rk4_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x_init, info)
 %NMPC_KINMATIC_CURVILINEAR Computes a NMPC step for a kinematic bicycle
 %model using a curvilinear coordinate frame.
 %   INPUTS:
@@ -27,7 +27,7 @@ function [x, slack, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, d
     x_ref = [x_ref; zeros(N_u, N_steps)];
 
     % Defining cost weights
-    Q = [5; 250; 2000; 0; 0];
+    Q = [5; 250; 2000; 0; 0; 0; 0];
     Q_terminal = Q * 10;
     R = [10, 10];
     
@@ -38,10 +38,10 @@ function [x, slack, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, d
     options.auxdata = { x0, x_ref, kappa, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = [repmat([-inf; -inf; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
-    options.ub = [repmat([inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); inf]; % Upper bound on optimization variable
-    options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps, 1); repmat([-inf; -5.0], N_steps, 1)]; % Lower bound on constraint function
-    options.cu = [zeros(N_x*N_steps, 1); repmat([0.75; inf], N_steps, 1); repmat([5.0; inf], N_steps, 1)]; % Upper bound on constraint function
+    options.lb = [repmat([-inf; -inf; -inf; 0.0; -inf; -inf; -0.4; -inf; -0.4], N_steps, 1); 0]; % Lower bound on optimization variable
+    options.ub = [repmat([inf; inf; inf; inf; inf; inf; 0.4; inf; 0.4], N_steps, 1); inf]; % Upper bound on optimization variable
+    options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps, 1); -inf*ones(N_steps, 1)]; % Lower bound on constraint function
+    options.cu = [zeros(N_x*N_steps, 1); repmat([0.75; inf], N_steps, 1); ones(N_steps, 1)]; % Upper bound on constraint function 
     
     % Set IPOPT options
     options.ipopt.print_level           = 0;
@@ -49,7 +49,7 @@ function [x, slack, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, d
     options.ipopt.tol                   = 1e-6; % OR 1e-5
     options.ipopt.hessian_approximation = 'limited-memory';
 %     options.ipopt.derivative_test       = 'first-order';
-%     options.ipopt.derivative_test_tol   = 1e-2;
+%     options.ipopt.derivative_test_tol   = 1e-0;
     
     % Define callback functions
     funcs.objective         = @objective; % Objective function (Required)
@@ -62,12 +62,12 @@ function [x, slack, info] = euler_nmpc_kinematic_curvilinear(x0, x_ref, kappa, d
     % Run IPOPT.
     x_init(1:end-(N_x+N_u)) = x_init(N_x+N_u+1:end);
     x_init(end-(N_x+N_u)+1 : end-N_u) = x_init(end-(N_x+N_u)+1 : end-N_u)...
-        + dt*f_curv_kin(x_init(end-(N_x+N_u)+1 : end-N_u), x_init(end-N_u+1 : end), kappa);
+        + dt*f_curv_dyn(x_init(end-(N_x+N_u)+1 : end-N_u), x_init(end-N_u+1 : end), kappa);
     x_init = [x_init; 0];
     [x, info] = ipopt_auxdata(x_init(:), funcs, options);  
     
     slack = x(end);
-    x = x(1:end-1);        
+    x = x(1:end-1);
     
 % ------------------------------------------------------------------
 function f = objective(x, auxdata)
@@ -88,7 +88,7 @@ function c = constraints(x, auxdata)
     [x0, ~, kappa, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
     % Preallocate
-    c = zeros((N_x + 2 + 2)*N_steps, 1);
+    c = zeros((N_x+2+1)*N_steps, 1);
     
     x_i = x0;
 
@@ -96,10 +96,15 @@ function c = constraints(x, auxdata)
         x_i_1 = x((i-1)*(N_x+N_u) + 1:(i-1)*(N_x+N_u) + N_x);
         u_i = x((i-1)*(N_x+N_u) + N_x + 1  :  i*(N_x+N_u));
         
-        % Calculate dynamic model
-        f = f_curv_kin(x_i, u_i, kappa);
+        % Perform RK4 step
+        [k1, Fcr] = f_curv_dyn(x_i, u_i, kappa);
+        k2 = f_curv_dyn(x_i + k1*dt / 2, u_i, kappa);
+        k3 = f_curv_dyn(x_i + k2*dt / 2, u_i, kappa);
+        k4 = f_curv_dyn(x_i + k3*dt, u_i, kappa);
         
-        c((i-1)*N_x + 1:i*N_x) = x_i + dt * f - x_i_1;
+        f = (k1 + 2*k2 + 2*k3 + k4) / 6;
+        
+        c((i-1)*N_x + 1:i*N_x) = x_i + dt*f - x_i_1;
         x_i = x_i_1;
         
         
@@ -109,10 +114,9 @@ function c = constraints(x, auxdata)
         
         
         % Friction constraints
-        lr = 0.6183;
-        lf = 0.8672;        
-        c(N_x*N_steps + 2*N_steps + 1 + 2*(i-1)) = x_i(4)^2 * x_i(5) / (lr + lf) - x(end);
-        c(N_x*N_steps + 2*N_steps + 2 + 2*(i-1)) = x_i(4)^2 * x_i(5) / (lr + lf) + x(end);    
+        ac_max = 6.5330;
+        al_max = 10.0;        
+        c(N_x*N_steps + 2*N_steps + i) = (Fcr / (200*ac_max))^2 + (u_i(1) / al_max)^2 - x(end);
     end
  
 % ------------------------------------------------------------------
@@ -121,25 +125,17 @@ function J = jacobianstructure(auxdata)
 
     % Define blocks of full Jacobian
     I = eye(N_x);
-    A = [1 1 1 1 1;
-         0 1 1 1 1;
-         0 1 1 1 1;
-         0 0 0 1 0;
-         0 0 0 0 1];
-    B = [0 0;
-         0 0;
-         0 0;
-         1 0;
-         0 1];
+    A = ones(7);
+    B = ones(7, 2);
 
     % Fill out Jacobian
-    J = zeros((N_x + 2 + 2)*N_steps, (N_x+N_u)*N_steps + 1);
+    J = zeros((N_x+2+1)*N_steps, (N_x+N_u)*N_steps+1);
     J(1:N_x, 1:(N_x+N_u)) = [I, B];    
     
     for i = 2:N_steps
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
         J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [I, B];
-    end
+    end  
     
     
     % Slack constraints
@@ -148,19 +144,19 @@ function J = jacobianstructure(auxdata)
         J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
     end
 
-    J(N_x*N_steps + 1 : N_x*N_steps + 2*N_steps, end) = ones(N_steps*2, 1);
+    J(N_x*N_steps + 1 : N_x*N_steps + 2*N_steps, end) = ones(N_steps*2, 1);    
     
     
     %  Friction constraints
-    for i = 1:N_steps    
-        J(N_x*N_steps + 2*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 4) = 1;  
-        J(N_x*N_steps + 2*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 5) = 1;  
-        
-        J(N_x*N_steps + 2*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 4) = 1;  
-        J(N_x*N_steps + 2*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 5) = 1;          
+    J(N_x*N_steps + 2*N_steps + 1, 8) = 1;
+    for i = 2:N_steps    
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 1;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = 1; 
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 1;  
+        J(N_x*N_steps + 2*N_steps + i, (i-1)*(N_x+N_u) + 8) = 1;   
     end        
     
-    J(N_x*N_steps + 2*N_steps + 1 : end, end) = ones(N_steps*2, 1);        
+    J(N_x*N_steps + 2*N_steps + 1 : end, end) = ones(N_steps, 1);       
 
     
     J = sparse(J);
@@ -172,22 +168,58 @@ function J = jacobian(x, auxdata)
     I = eye(N_x);
 
     % Fill out Jacobian
-    J = zeros((N_x + 2 + 2)*N_steps, (N_x+N_u)*N_steps + 1);
+    J = zeros((N_x+2+1)*N_steps, (N_x+N_u)*N_steps+1);
     
     u0 = x(N_x + 1 : N_x+N_u);
-    B = B_curv_kin(x0, u0, kappa) * dt;
+    B = B_curv_dyn(x0, u0, kappa) * dt;
     J(1:N_x, 1:(N_x+N_u)) = [-I, B];       
+    J(N_x*N_steps + 2*N_steps + 1, 8) = 2*u0(1) / 10.0^2;
     
     for i = 2:N_steps
         x_i = x((i-2)*(N_x+N_u) + 1 : (i-2)*(N_x+N_u) + N_x);
         u_i = x((i-1)*(N_x+N_u) + N_x + 1 : i*(N_x+N_u));
         
-        A = A_curv_kin(x_i, u_i, kappa) * dt + I;
-        B = B_curv_kin(x_i, u_i, kappa) * dt;
+        % Calculate RK4 slopes
+        k1 = f_curv_dyn(x_i, u_i, kappa);
+        k2 = f_curv_dyn(x_i + k1*dt / 2, u_i, kappa);
+        k3 = f_curv_dyn(x_i + k2*dt / 2, u_i, kappa);
+                
+        % Calculate RK4 partial derivatives w.r.t. states 
+        [dfdx1, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d] = A_curv_dyn(x_i, u_i, kappa);
+        dfdx2 = A_curv_dyn(x_i + k1*dt / 2, u_i, kappa);
+        dfdx3 = A_curv_dyn(x_i + k2*dt / 2, u_i, kappa);
+        dfdx4 = A_curv_dyn(x_i + k3*dt, u_i, kappa);
+        
+        dkdx1 = dfdx1;
+        dkdx2 = dfdx2 * (I + dkdx1*dt / 2);
+        dkdx3 = dfdx3 * (I + dkdx2*dt / 2);
+        dkdx4 = dfdx4 * (I + dkdx3*dt);
+        
+        % Calculate RK4 partial derivatives w.r.t. controls
+        dkdu1 = B_curv_dyn(x_i, u_i, kappa);
+        dkdu2 = B_curv_dyn(x_i + k1*dt / 2, u_i, kappa) + dfdx2*dkdu1*dt / 2;
+        dkdu3 = B_curv_dyn(x_i + k2*dt / 2, u_i, kappa) + dfdx3*dkdu2*dt / 2;
+        dkdu4 = B_curv_dyn(x_i + k3*dt, u_i, kappa) + dfdx4*dkdu3*dt / 2;
+        
+        % Calculate final matrices
+        A = I + dt * (dkdx1 + 2*dkdx2 + 2*dkdx3 + dkdx4) / 6;
+        B = dt * (dkdu1 + 2*dkdu2 + 2*dkdu3 + dkdu4) / 6;
         
         J((i-1)*N_x+1 : i*N_x, (i-2)*(N_x+N_u)+1 : (i-2)*(N_x+N_u)+N_x) = A;
-        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];
+        J((i-1)*N_x+1 : i*N_x, (i-1)*(N_x+N_u)+1 : i*(N_x+N_u)) = [-I, B];     
+        
+        
+        % Friction constraints
+        ac_max = 6.5330;
+        al_max = 10.0; 
+        lr = 0.6183;    
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 2*Fcr*Fcr_d*denom_vr2*vr*x_d_hat_d/x_d_hat / (200*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = -2*Fcr*Fcr_d*denom_vr2/x_d_hat / (200*ac_max)^2; 
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 2*Fcr*Fcr_d*denom_vr2*lr/x_d_hat / (200*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-1)*(N_x+N_u) + 8) = 2*u_i(1) / al_max^2; 
     end
+    
+    J(N_x*N_steps + 2*N_steps + 1 : end, end) = -ones(N_steps, 1); 
     
     
     % Slack constraints
@@ -196,23 +228,7 @@ function J = jacobian(x, auxdata)
         J(N_x*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 2) = 1;        
     end
 
-    J(N_x*N_steps + 1 : N_x*N_steps + 2*N_steps, end) = repmat([-1; 1], N_steps, 1);    
+    J(N_x*N_steps + 1 : N_x*N_steps + 2*N_steps, end) = repmat([-1; 1], N_steps, 1);        
     
-    
-    %  Friction constraints
-    for i = 1:N_steps
-        x_i = x((i-1)*(N_x+N_u) + 1 : (i-1)*(N_x+N_u) + N_x);
-        
-        lr = 0.6183;
-        lf = 0.8672;        
-        J(N_x*N_steps + 2*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 4) = 2*x_i(4) * x_i(5) / (lr + lf);  
-        J(N_x*N_steps + 2*N_steps + 1 + 2*(i-1), (i-1)*(N_x+N_u) + 5) = x_i(4)^2 / (lr + lf);  
-        
-        J(N_x*N_steps + 2*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 4) = 2*x_i(4) * x_i(5) / (lr + lf);  
-        J(N_x*N_steps + 2*N_steps + 2 + 2*(i-1), (i-1)*(N_x+N_u) + 5) = x_i(4)^2 / (lr + lf);  
-    end      
-    
-    J(N_x*N_steps + 2*N_steps + 1 : end, end) = repmat([-1; 1], N_steps, 1);  
-       
     
     J = sparse(J);

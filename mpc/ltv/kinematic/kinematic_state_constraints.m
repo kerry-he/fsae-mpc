@@ -1,4 +1,4 @@
-function [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, lb, ub, state_idx, soft_idx, x_lin)
+function [B_bar, xA, lbA, ubA] = kinematic_state_constraints(A_bar, B_bar, d_bar, x0, lb, ub, state_idx, soft_idx, x_lin)
 %SOFT_CONSTRAINTS Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -41,7 +41,7 @@ function [B_bar, xA, lbA, ubA] = state_constraints(A_bar, B_bar, d_bar, x0, lb, 
     % Modify B_bar matrix to account for soft constraints
     xA(end-2*N_soft*N_steps+1:end, end) = [ones(N_soft*N_steps, 1); -ones(N_soft*N_steps, 1)];
     
-    [A_ay, lb_ay, ub_ay] = linearise_constraints(A_bar, B_bar, d_bar, x_lin, x0);
+    [A_ay, lb_ay, ub_ay] = kinematic_tyre_linearise_constraints(A_bar, B_bar, d_bar, x_lin, x0);
     xA = [xA; A_ay; A_ay];
     lbA = [lbA; lb_ay; -inf*ones(N_steps, 1)];
     ubA = [ubA; inf*ones(N_steps, 1); ub_ay];
