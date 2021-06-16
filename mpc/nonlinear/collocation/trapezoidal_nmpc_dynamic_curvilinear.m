@@ -85,14 +85,14 @@ function f = objective(x, auxdata)
     [~, x_ref, ~, Q_bar, ~, ~, ~, ~] = deal(auxdata{:});
     
     x_error = x(1:end-2) - x_ref(:);
-    f = x_error' * Q_bar * x_error + x(end-1)*1e5 + x(end)*1e8;
+    f = x_error' * Q_bar * x_error + x(end-1)*1e5 + x(end)*1e5;
 
 % ------------------------------------------------------------------
 function g = gradient(x, auxdata)
     [~, x_ref, ~, Q_bar, ~, ~, ~, ~] = deal(auxdata{:});
     
     x_error = x(1:end-2) - x_ref(:);
-    g = [2 * Q_bar * x_error; 1e5; 1e8];
+    g = [2 * Q_bar * x_error; 1e5; 1e5];
 
 % ------------------------------------------------------------------
 function c = constraints(x, auxdata)

@@ -8,7 +8,7 @@ addpath(genpath('vehicle_models'));
 addpath(genpath('optimizers'));
 
 %% Obtain track spline
-filename = "data/fsg2019.csv";
+filename = "data/fss2019.csv";
 [x, y, vx, vy, ax, ay, dt, rx, ry, lx, ly] = read_raceline_csv(filename);
 
 % Generate spline
@@ -73,6 +73,12 @@ x_history = zeros(N_simulation, 7);
 u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
 
+% Simulate time delay
+T_delay = 0.2;
+N_delay = round(T_delay / dt) + 1;
+vel_queue = zeros(N_delay, 1);
+steer_queue = zeros(N_delay, 1);
+
 % Initialise map plot
 figure(1)
 plot(rx, ry, "y*")
@@ -88,12 +94,18 @@ steer_pid_status = {0, 0};
 
 %% Simulate MPC
 for i = 1:N_simulation
+    % Forward prediction of car state
+    x_pred = x;
+    for j = N_delay:-1:1
+        x_pred = integrate_cart_dyn(x_pred, [u_opt_history(max(i-j, 1), 1)*200; u_opt_history(max(i-j, 1), 2)], dt);
+    end
+    
     % Calculate coordinates in curvilinear frame
-    [s, n, mu] = cartesian_to_curvilinear(x(1), x(2), x(3), x_spline, y_spline, dl, x_opt(1));
+    [s, n, mu] = cartesian_to_curvilinear(x_pred(1), x_pred(2), x_pred(3), x_spline, y_spline, dl, x_opt(1));
     if MODEL == "KINEMATIC"
-        x0 = [s; n; mu; norm(x(4:5)) ; x(7)];
+        x0 = [s; n; mu; norm(x_pred(4:5)) ; x_pred(7)];
     elseif MODEL == "DYNAMIC"
-        x0 = [s; n; mu; x(4); x(5); x(6); x(7)];
+        x0 = [s; n; mu; x_pred(4); x_pred(5); x_pred(6); x_pred(7)];
     end
     
     % If finished lap, terminate simulation
@@ -103,7 +115,7 @@ for i = 1:N_simulation
     end
     
     % Define new reference points
-    if x(4) < TARGET_VEL
+    if x_pred(4) < TARGET_VEL
         x_ref(4, :) = x0(4)+10*dt : 10*dt : x0(4)+10*dt*N_steps;
         x_ref(4, :) = min(x_ref(4, :), TARGET_VEL);
     else
@@ -161,18 +173,19 @@ for i = 1:N_simulation
     
     % Update vehicle model
     if MODE == "C-NMPC"
-        v_ref = x_opt(4 + N_x);
-        delta_ref = x_opt(2 * N_x);
+        vel_queue = [vel_queue(2:end); x_opt(4 + N_x)];
+        steer_queue = [steer_queue(2:end); x_opt(2 * N_x)];
     else
-        v_ref = x_opt(4);
-        delta_ref = x_opt(N_x);
+        vel_queue = [vel_queue(2:end); x_opt(4)];
+        steer_queue = [steer_queue(2:end); x_opt(N_x)];        
     end
     
     for j = 1:10
-        [vel_rate, vel_pid_status] = pid_controller(v_ref, x(4), vel_pid_settings, vel_pid_status);
-        [steer_rate, steer_pid_status] = pid_controller(delta_ref, x(7), steer_pid_settings, steer_pid_status);
+        [vel_rate, vel_pid_status] = pid_controller(vel_queue(1), x(4), vel_pid_settings, vel_pid_status);
+        [steer_rate, steer_pid_status] = pid_controller(steer_queue(1), x(7), steer_pid_settings, steer_pid_status);
         x = integrate_cart_dyn(x, [vel_rate; steer_rate], dt/10);
     end
+
     [~, Fcr] = f_curv_dyn(x, [vel_rate; steer_rate], kappa);
     Fcr_list(i) = Fcr;
     Fx_list(i) = u_opt(1);
