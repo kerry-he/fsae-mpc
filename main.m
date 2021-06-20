@@ -67,7 +67,8 @@ n_list = zeros(N_simulation, 1);
 exit_status = zeros(N_simulation, 1);
 cpu_time = zeros(N_simulation, 1);
 objective = zeros(N_simulation, 1);
-slack = zeros(N_simulation, 1);
+slack_n = zeros(N_simulation, 1);
+slack_tyre = zeros(N_simulation, 1);
 
 x_history = zeros(N_simulation, 7);
 u_opt_history = zeros(N_simulation, N_u);
@@ -127,7 +128,8 @@ for i = 1:N_simulation
         exit_status(i) = exitflag;
         objective(i) = fval;        
         cpu_time(i) = toc;
-        slack(i) = slack_opt(1);
+        slack_n(i) = slack_opt(1);
+        slack_tyre(i) = slack_opt(4);
         
     else
         % Solve the nonlinear MPC problem
@@ -152,7 +154,8 @@ for i = 1:N_simulation
         exit_status(i) = ipopt_info.status;
         objective(i) = ipopt_info.objective;
         cpu_time(i) = ipopt_info.cpu;
-        slack(i) = slack_mpc(end);
+        slack_n(i) = slack_mpc(2);
+        slack_tyre(i) = slack_mpc(1);
     end
 
     if VISUALISE
@@ -190,25 +193,37 @@ if MODE == "LTV-MPC"
 end
 
 %% Metrics
-COPY_FORMAT = false; 
+
+slack_all = (slack_n(1:i-1)==0) & (slack_tyre(1:i-1)==0);
+friction_ellipse = (Fcr_list / (200*6.5330)).^2 + (Fx_list / 10.0).^2;
+
+COPY_FORMAT = true; 
 if COPY_FORMAT
     fprintf('%f\n', (i-1)*dt)
     fprintf('%f\n', sum(abs(n_list(abs(n_list)>0.75)) - 0.75) * dt)
     fprintf('%f\n', max(abs(n_list(abs(n_list)>0.75)) - 0.75))
     fprintf('%.8f\n', mean(cpu_time(1:i-1)))
+    fprintf('%.8f\n', median(cpu_time(1:i-1)))
     fprintf('%.8f\n', max(cpu_time(1:i-1)))
     fprintf('%.8f%%\n', sum(exit_status(1:i-1)~=0)/(i-1)*100)
-    fprintf('%.8f\n', mean(objective(slack(1:i-1)==0)))
-    fprintf('%.8f%%\n', sum(slack(1:i-1)~=0)/(i-1)*100)
+    fprintf('%.8f\n', mean(objective(slack_all)))
+    fprintf('%.8f%%\n', sum(slack_n(1:i-1)~=0)/(i-1)*100)
+    fprintf('%f\n', sum(friction_ellipse(friction_ellipse>1.0) - 1.0) * dt)
+    fprintf('%f\n', max(friction_ellipse(friction_ellipse>1.0) - 1.0))
+    fprintf('%.8f%%\n', sum(slack_tyre(1:i-1)~=0)/(i-1)*100)
 else
     fprintf('Lap time: %f\n', (i-1)*dt)
     fprintf('Track violation: %f\n', sum(abs(n_list(abs(n_list)>0.75)) - 0.75) * dt)
     fprintf('Max track violation: %f\n', max(abs(n_list(abs(n_list)>0.75)) - 0.75))
     fprintf('Average CPU time: %.8f\n', mean(cpu_time(1:i-1)))
+    fprintf('Mode CPU time: %.8f\n', median(cpu_time(1:i-1)))
     fprintf('Max CPU time: %.8f\n', max(cpu_time(1:i-1)))
     fprintf('Abnormal exits: %.8f%%\n', sum(exit_status(1:i-1)~=0)/(i-1)*100)
-    fprintf('Optimal value: %.8f\n', mean(objective(slack(1:i-1)==0)))
-    fprintf('Slack violations: %.8f%%\n', sum(slack(1:i-1)~=0)/(i-1)*100)    
+    fprintf('Optimal value: %.8f\n', mean(objective(slack_all)))
+    fprintf('Track slack violations: %.8f%%\n', sum(slack_n(1:i-1)~=0)/(i-1)*100)
+    fprintf('Tyre violation: %f\n', sum(friction_ellipse(friction_ellipse>1.0) - 1.0) * dt)
+    fprintf('Max tyre violation: %f\n', max(friction_ellipse(friction_ellipse>1.0) - 1.0))
+    fprintf('Tyre slack violations: %.8f%%\n', sum(slack_tyre(1:i-1)~=0)/(i-1)*100)
 end
 
 %% Plot results

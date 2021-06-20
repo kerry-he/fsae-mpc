@@ -30,7 +30,7 @@ function [x, slack, info] = trapezoidal_nmpc_dynamic_curvilinear(x0, x_ref, kapp
     
 
     % Defining cost weights
-    Q = [10; 250; 2000; 0; 0; 0; 0];
+    Q = [5; 250; 2000; 0; 0; 0; 0];
     Q_terminal = 10;
     R = [10; 10];
     
