@@ -26,11 +26,9 @@ function [x, info, ds, N_steps] = minimum_time_planner(x_spline, y_spline, dl, L
     
     Q_vec = [repmat([Q(:); R(:)], N_steps - 1, 1); Q_terminal(:); R(:)];
     Q_bar = spdiags(Q_vec, 0, length(Q_vec), length(Q_vec));
-    
-    x0 = [0; 0; 20; 0];
-    
+        
     % Set up the auxiliary data.
-    options.auxdata = { x0, kappa, Q_bar, N_x, N_u, N_steps, ds };
+    options.auxdata = { kappa, Q_bar, N_x, N_u, N_steps, ds };
 
     % The constraint functions are bounded from below by zero.
     options.lb = repmat([-1.0; -inf; 0; -0.4; -10.0; -0.4], N_steps, 1); % Lower bound on optimization variable
@@ -61,7 +59,7 @@ function [x, info, ds, N_steps] = minimum_time_planner(x_spline, y_spline, dl, L
     
 % ------------------------------------------------------------------
 function f = objective(x, auxdata)
-    [~, kappa, Q_bar, N_x, N_u, N_steps, ds] = deal(auxdata{:});
+    [kappa, Q_bar, N_x, N_u, N_steps, ds] = deal(auxdata{:});
     
     f = x' * Q_bar * x;
     
@@ -83,7 +81,7 @@ function f = objective(x, auxdata)
 
 % ------------------------------------------------------------------
 function g = gradient(x, auxdata)
-    [~, kappa, Q_bar, N_x, N_u, N_steps, ds] = deal(auxdata{:});
+    [kappa, Q_bar, N_x, N_u, N_steps, ds] = deal(auxdata{:});
     
     g = 2 * Q_bar * x;
 
@@ -123,7 +121,7 @@ function g = gradient(x, auxdata)
 
 % ------------------------------------------------------------------
 function c = constraints(x, auxdata)
-    [x0, kappa, ~, N_x, N_u, N_steps, ds] = deal(auxdata{:});
+    [kappa, ~, N_x, N_u, N_steps, ds] = deal(auxdata{:});
     
     % Define vehicle constants
     lr = 0.6183;
@@ -152,7 +150,7 @@ function c = constraints(x, auxdata)
 
 % ------------------------------------------------------------------
 function J = jacobianstructure(auxdata)  
-    [~, ~, ~, N_x, N_u, N_steps, ~] = deal(auxdata{:});
+    [~, ~, N_x, N_u, N_steps, ~] = deal(auxdata{:});
 
     % Define blocks of full Jacobian
     I = eye(N_x);
@@ -175,7 +173,7 @@ function J = jacobianstructure(auxdata)
 
 % ------------------------------------------------------------------
 function J = jacobian(x, auxdata)  
-    [~, kappa, ~, N_x, N_u, N_steps, ds] = deal(auxdata{:});
+    [kappa, ~, N_x, N_u, N_steps, ds] = deal(auxdata{:});
     
     % Define vehicle constants
     lr = 0.6183;

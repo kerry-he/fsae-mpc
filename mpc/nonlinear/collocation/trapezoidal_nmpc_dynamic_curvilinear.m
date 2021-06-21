@@ -99,7 +99,7 @@ function c = constraints(x, auxdata)
     [x0, ~, kappa, ~, N_x, N_u, N_steps, dt] = deal(auxdata{:});
     
     % Preallocate
-     c = zeros((N_x + 2 + 1)*N_steps - 2, 1);
+    c = zeros((N_x + 2 + 1)*N_steps - 2, 1);
     
     c(1:N_x) = x(1:N_x) - x0;
     
