@@ -17,7 +17,7 @@ y_spline = make_spline_periodic(y);
 [x_spline, y_spline, dl, L] = arclength_reparam(x_spline, y_spline, 100, true);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
 
-% [x, info, ds, N] = dynamic_minimum_time_planner(x_spline, y_spline, dl, L);
+% [x, info, ds, N, slack] = dynamic_minimum_time_planner(x_spline, y_spline, dl, L);
 % [x_pred, y_pred, ~] = curvilinear_to_cartesian(0:ds:ds*(N-1), ...
 %     x(1:8:end), x(2:8:end), x_spline, y_spline, dl);
 
