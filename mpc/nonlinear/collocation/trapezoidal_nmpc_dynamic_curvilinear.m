@@ -51,7 +51,7 @@ function [x, slack, info] = trapezoidal_nmpc_dynamic_curvilinear(x0, x_ref, kapp
     % The constraint functions are bounded from below by zero.
     options.lb = [repmat([-inf; -inf; -inf; 0; -inf; -inf; -0.4; -10.0; -0.4], N_steps, 1); 0; 0]; % Lower bound on optimization variable
     options.ub = [repmat([inf; inf; inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); 0.05; inf]; % Upper bound on optimization variable
-    options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps-1, 1); -inf*ones(N_steps, 1)]; % Lower bound on constraint function
+    options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps-1, 1); -inf(N_steps, 1)]; % Lower bound on constraint function
     options.cu = [zeros(N_x*N_steps, 1); repmat([0.75; inf], N_steps-1, 1); ones(N_steps, 1)]; % Upper bound on constraint function
     
     % Set IPOPT options

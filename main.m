@@ -17,9 +17,9 @@ y_spline = make_spline_periodic(y);
 [x_spline, y_spline, dl, L] = arclength_reparam(x_spline, y_spline, 100, true);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
 
-% [x, info, ds, N, slack] = dynamic_minimum_time_planner(x_spline, y_spline, dl, L);
-% [x_pred, y_pred, ~] = curvilinear_to_cartesian(0:ds:ds*(N-1), ...
-%     x(1:8:end), x(2:8:end), x_spline, y_spline, dl);
+[x_opt_traj, t, info, ds, N_s, slack] = dynamic_minimum_time_planner(x_spline, y_spline, dl, L);
+[x_pred, y_pred, ~] = curvilinear_to_cartesian(0:ds:ds*(N_s-1), ...
+    x_opt_traj(1:8:end), x_opt_traj(2:8:end), x_spline, y_spline, dl);
 
 %% Setup MPC parameters
 MODE = "MS-NMPC";
@@ -112,6 +112,7 @@ for i = 1:N_simulation
         x_ref(4, :) = max(x_ref(4, :), TARGET_VEL);
     end
     x_ref(1, :) = x0(1) + cumsum(x_ref(4, :)*dt);
+%     x_ref = obtain_reference(x_opt_traj, ds, N_s, t, s, dt, N_steps);
     
     % Solve MPC problem
     if MODE == "LTV-MPC"
