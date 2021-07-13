@@ -37,8 +37,8 @@ function [x, slack, info] = rk2_nmpc_dynamic_curvilinear(x0, x_ref, kappa, dt, x
     options.auxdata = { x0, x_ref, kappa, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = [repmat([-inf; -inf; -inf; 0; -inf; -inf; -0.4; -10.0; -0.2], N_steps, 1); 0; 0]; % Lower bound on optimization variable
-    options.ub = [repmat([inf; inf; inf; inf; inf; inf; 0.4; 10.0; 0.2], N_steps, 1); inf; inf]; % Upper bound on optimization variable
+    options.lb = [repmat([-inf; -inf; -inf; 0; -inf; -inf; -0.4; -10.0; -0.4], N_steps, 1); 0; 0]; % Lower bound on optimization variable
+    options.ub = [repmat([inf; inf; inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); inf; inf]; % Upper bound on optimization variable
     options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps, 1); -inf*ones(N_steps, 1)]; % Lower bound on constraint function
     options.cu = [zeros(N_x*N_steps, 1); repmat([0.75; inf], N_steps, 1); ones(N_steps, 1)]; % Upper bound on constraint function
     
@@ -107,9 +107,9 @@ function c = constraints(x, auxdata)
         c(N_x*N_steps + 2 + 2*(i-1)) = x_i(2) + x(end);
         
         % Friction constraints
-        ac_max = 6.5330;
+        ac_max = 9.1630;
         al_max = 10.0;        
-        c(N_x*N_steps + 2*N_steps + i) = (Fcr / (200*ac_max))^2 + (u_i(1) / al_max)^2 - x(end-1);        
+        c(N_x*N_steps + 2*N_steps + i) = (Fcr / (280*ac_max))^2 + (u_i(1) / al_max)^2 - x(end-1);        
     end
 
 % ------------------------------------------------------------------
@@ -195,12 +195,12 @@ function J = jacobian(x, auxdata)
         
         
         % Friction constraints
-        ac_max = 6.5330;
+        ac_max = 9.1630;
         al_max = 10.0; 
         lr = 0.6183;    
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 2*Fcr*Fcr_d*denom_vr2*vr*x_d_hat_d/x_d_hat / (200*ac_max)^2;  
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = -2*Fcr*Fcr_d*denom_vr2/x_d_hat / (200*ac_max)^2; 
-        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 2*Fcr*Fcr_d*denom_vr2*lr/x_d_hat / (200*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 4) = 2*Fcr*Fcr_d*denom_vr2*vr*x_d_hat_d/x_d_hat / (280*ac_max)^2;  
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 5) = -2*Fcr*Fcr_d*denom_vr2/x_d_hat / (280*ac_max)^2; 
+        J(N_x*N_steps + 2*N_steps + i, (i-2)*(N_x+N_u) + 6) = 2*Fcr*Fcr_d*denom_vr2*lr/x_d_hat / (280*ac_max)^2;  
         J(N_x*N_steps + 2*N_steps + i, (i-1)*(N_x+N_u) + 8) = 2*u_i(1) / al_max^2; 
     end
     

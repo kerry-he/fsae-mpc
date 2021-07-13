@@ -2,7 +2,7 @@ function [A, lb, ub] = dynamic_tyre_linearise_constraints(A_bar, B_bar, d_bar, x
 %LINEARISE_CONSTRAINTS Summary of this function goes here
 %   Detailed explanation goes here
 
-    ac_max = 6.5330;
+    ac_max = 9.1630;
     al_max = 10.0; 
     lr = 0.6183;    
 
@@ -38,12 +38,12 @@ function [A, lb, ub] = dynamic_tyre_linearise_constraints(A_bar, B_bar, d_bar, x
         C = zeros(N, N_x);
         D = zeros(N, N_u);
         for j = 1:N
-            g0(j) = (u(1) - al_list(j))*dac(j) - (Fcr/200 - ac_list(j))*dal(j);
+            g0(j) = (u(1) - al_list(j))*dac(j) - (Fcr/280 - ac_list(j))*dal(j);
             
             C(j, :) = [0, 0, 0, ...
-                       -dal(j)*Fcr_d*denom_vr2*vr*x_d_hat_d/x_d_hat / 200, ...
-                       dal(j)*Fcr_d*denom_vr2/x_d_hat / 200, ...
-                       -dal(j)*Fcr_d*denom_vr2*lr/x_d_hat / 200, ...
+                       -dal(j)*Fcr_d*denom_vr2*vr*x_d_hat_d/x_d_hat / 280, ...
+                       dal(j)*Fcr_d*denom_vr2/x_d_hat / 280, ...
+                       -dal(j)*Fcr_d*denom_vr2*lr/x_d_hat / 280, ...
                        0];
                    
             D(j, :) = [dac(j), 0];                   

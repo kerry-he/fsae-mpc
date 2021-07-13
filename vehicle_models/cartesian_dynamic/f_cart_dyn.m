@@ -10,8 +10,8 @@ function f = f_cart_dyn(x, u)
 %       f - Dynamic model equations
 
     % Define vehicle constants
-    m = 200;
-    I = 200;
+    m = 280;
+    I = 230;
     lr = 0.6183;
     lf = 0.8672;
     
@@ -32,8 +32,8 @@ function f = f_cart_dyn(x, u)
     alpha_r = -atan((y_d - lr*theta_d) / (x_d + 0.01));
     
     % Mass distribution
-    Fzf = m*g * lf / (lr+lf);
-    Fzr = m*g * lr / (lr+lf);
+    Fzf = m*g * lr / (lr+lf);
+    Fzr = m*g * lf / (lr+lf);
     
     % Pacejka magic formula
     B = 12.56;

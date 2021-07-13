@@ -10,8 +10,8 @@ function [f, Fcr] = f_curv_dyn(x, u, kappa)
 %       f - Dynamic model equations
 
     % Define vehicle constants
-    m = 200;
-    I = 200;
+    m = 280;
+    I = 230;
     lr = 0.6183;
     lf = 0.8672;
     
@@ -40,8 +40,8 @@ function [f, Fcr] = f_curv_dyn(x, u, kappa)
     alpha_r = -atan((y_d - lr*theta_d) / x_d_hat);
     
     % Mass distribution
-    Fzf = m*g * lf / (lr+lf);
-    Fzr = m*g * lr / (lr+lf);
+    Fzf = m*g * lr / (lr+lf);
+    Fzr = m*g * lf / (lr+lf);
     
     % Pacejka magic formula
     B = 12.56;
@@ -52,6 +52,8 @@ function [f, Fcr] = f_curv_dyn(x, u, kappa)
     Fcf = Fzf * D * sin(C * atan(B*alpha_f - E*(B*alpha_f - atan(B*alpha_f))));
     Fcr = Fzr * D * sin(C * atan(B*alpha_r - E*(B*alpha_r - atan(B*alpha_r))));
     
+    K_steer = 5.0;
+    
     % Populate matrix
     f = [(x_d * cos(mu) - y_d * sin(mu))*denom_nk;
          x_d * sin(mu) + y_d * cos(mu);
@@ -59,7 +61,7 @@ function [f, Fcr] = f_curv_dyn(x, u, kappa)
          (Fx - Fcf*sin(delta) + m*y_d*theta_d) / m;
          (Fcr + Fcf*cos(delta) - m*x_d*theta_d) / m;
          (lf*Fcf*cos(delta) - lr*Fcr) / I;
-         delta_d];
+         K_steer * (delta_d - delta)];
 
 end
 

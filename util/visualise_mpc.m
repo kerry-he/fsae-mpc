@@ -1,4 +1,4 @@
-function visualise_mpc(x, x_opt, x_P, y_P, dl, MODEL)
+function visualise_mpc(x, x_opt, x_P, y_P, dl, MODEL, x_ref)
 %VISUALISE_MPC Visualise inner workings of MPC
 %   INPTUS:
 %       x - State of car in Cartesian coordinates
@@ -31,9 +31,12 @@ function visualise_mpc(x, x_opt, x_P, y_P, dl, MODEL)
         x_opt(2:N_x:end), x_opt(3:N_x:end), x_P, y_P, dl);
     [x_mid, y_mid, ~] = curvilinear_to_cartesian(x_opt(1:N_x:end), ...
         zeros(N_steps, 1), x_opt(3:N_x:end), x_P, y_P, dl);
-
+    [x_ref, y_ref, ~] = curvilinear_to_cartesian(x_ref(1, :)', ...
+        x_ref(2, :)', x_ref(3, :)', x_P, y_P, dl);
+    
     car_opt_marker = plot(x_pred, y_pred, "r.");
     mid_opt_marker = plot(x_mid, y_mid, "k-");
+    ref_opt_marker = plot(x_ref, y_ref, "b.");
 
     % Plot controls
     set(0, 'CurrentFigure', f2);
@@ -53,6 +56,7 @@ function visualise_mpc(x, x_opt, x_P, y_P, dl, MODEL)
     delete(car_marker);
     delete(car_opt_marker);
     delete(mid_opt_marker);
+    delete(ref_opt_marker);
 
 end
 

@@ -1,4 +1,4 @@
-function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_curv_dyn(x, ~, kappa)
+ function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_curv_dyn(x, ~, kappa)
 %F_CURV_KIN Calculates the Jacobian of f_curv_kin with respect to the state
 %variables
 %   INPUT:
@@ -12,8 +12,8 @@ function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_c
 %       A - Jacobian of vehicle model with respect to state variables
 
     % Define vehicle constants
-    m = 200;
-    I = 200;
+    m = 280;
+    I = 230;
     lr = 0.6183;
     lf = 0.8672;
     
@@ -36,8 +36,8 @@ function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_c
     alpha_r = -atan((y_d - lr*theta_d) / x_d_hat);
     
     % Mass distribution
-    Fzf = m*g * lf / (lr+lf);
-    Fzr = m*g * lr / (lr+lf);
+    Fzf = m*g * lr / (lr+lf);
+    Fzr = m*g * lf / (lr+lf);
     
     % Pacejka magic formula
     B = 12.56;
@@ -64,6 +64,8 @@ function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_c
     denom_vf2 = 1 / (1 + vf^2);
     denom_vr2 = 1 / (1 + vr^2);
     
+    K_steer = 5.0;
+    
     % Partial derivatives
     s_n = (x_d * cos(mu) - y_d * sin(mu))*denom_nk^2 * k;
     s_mu = (-x_d * sin(mu) - y_d * cos(mu))*denom_nk;
@@ -87,7 +89,7 @@ function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_c
     
     yd_xd = (Fcr_d * denom_vr2 * vr * x_d_hat_d / x_d_hat + Fcf_d * denom_vf2 * vf * cos(delta) * x_d_hat_d / x_d_hat - m * theta_d) / m;
     yd_yd = (-Fcr_d  * denom_vr2 / x_d_hat - Fcf_d * denom_vf2 / x_d_hat * cos(delta)) / m;
-    yd_thetad = (Fcr_d  * denom_vr2 * lr / x_d_hat - Fcf_d * denom_vf2 * lf / x_d_hat * cos(delta) - m * x_d_hat) / m;
+    yd_thetad = (Fcr_d  * denom_vr2 * lr / x_d_hat - Fcf_d * denom_vf2 * lf / x_d_hat * cos(delta) - m * x_d) / m;
     yd_delta = (-Fcf * sin(delta) + Fcf_d * cos(delta)) / m;
     
     t_xd = (lf * Fcf_d * denom_vf2 * vf * cos(delta) * x_d_hat_d / x_d_hat - lr * Fcr_d * denom_vr2 * vr * x_d_hat_d / x_d_hat) / I;
@@ -102,7 +104,7 @@ function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_c
          0          0          0           xd_xd      xd_yd      xd_thetad  xd_delta;
          0          0          0           yd_xd      yd_yd      yd_thetad  yd_delta;
          0          0          0           t_xd       t_yd       t_thetad   t_delta;
-         0          0          0           0          0          0          0];
+         0          0          0           0          0          0          -K_steer];
 
 end
 

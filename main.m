@@ -8,7 +8,7 @@ addpath(genpath('vehicle_models'));
 addpath(genpath('optimizers'));
 
 %% Obtain track spline
-filename = "data/fss2019.csv";
+filename = "data/fsg2019.csv";
 [x, y, vx, vy, ax, ay, dt, rx, ry, lx, ly] = read_raceline_csv(filename);
 
 % Generate spline
@@ -22,7 +22,7 @@ kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl);
     x_opt_traj(1:8:end), x_opt_traj(2:8:end), x_spline, y_spline, dl);
 
 %% Setup MPC parameters
-MODE = "MS-NMPC";
+MODE = "C-NMPC";
 MODEL = "DYNAMIC";
 VISUALISE = true;
 
@@ -75,7 +75,7 @@ u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
 
 % Simulate time delay
-T_delay = 0.2;
+T_delay = 0.05;
 N_delay = round(T_delay / dt) + 1;
 vel_queue = zeros(N_delay, 1);
 steer_queue = zeros(N_delay, 1);
@@ -87,18 +87,19 @@ hold on
 plot(lx, ly, "b*")
 
 %% Setup actuator controllers
-vel_pid_settings = {16000.0, 0, 0, 2000};
+vel_pid_settings = {450.0, 0, 0, 2800};
 vel_pid_status = {0, 0};
 
-steer_pid_settings = {80.0, 0, 0, 0.8};
+steer_pid_settings = {5.0, 0, 0, 0.8};
 steer_pid_status = {0, 0};
 
 %% Simulate MPC
 for i = 1:N_simulation
     % Forward prediction of car state
-    x_pred = x;
-    for j = N_delay:-1:1
-        x_pred = integrate_cart_dyn(x_pred, [u_opt_history(max(i-j, 1), 1)*200; u_opt_history(max(i-j, 1), 2)], dt);
+    x_pred = x ;%+ (rand(N_x, 1)*2-1) .* [0.05; 0.05; 0.005; 0.1; 0.1; 0.001; 0];
+    x_pred(4) = max(0, x_pred(4));
+    for j = N_delay-1:-1:1
+        x_pred = integrate_cart_dyn(x_pred, [u_opt_history(max(i-j, 1), 1)*280; u_opt_history(max(i-j, 1), 2)], dt);
     end
     
     % Calculate coordinates in curvilinear frame
@@ -116,15 +117,15 @@ for i = 1:N_simulation
     end
     
     % Define new reference points
-    if x_pred(4) < TARGET_VEL
-        x_ref(4, :) = x0(4)+10*dt : 10*dt : x0(4)+10*dt*N_steps;
-        x_ref(4, :) = min(x_ref(4, :), TARGET_VEL);
-    else
-        x_ref(4, :) = x0(4)-10*dt : -10*dt : x0(4)-10*dt*N_steps;
-        x_ref(4, :) = max(x_ref(4, :), TARGET_VEL);
-    end
-    x_ref(1, :) = x0(1) + cumsum(x_ref(4, :)*dt);
-%     x_ref = obtain_reference(x_opt_traj, ds, N_s, t, s, dt, N_steps);
+%     if x_pred(4) < TARGET_VEL
+%         x_ref(4, :) = x0(4)+10*dt : 10*dt : x0(4)+10*dt*N_steps;
+%         x_ref(4, :) = min(x_ref(4, :), TARGET_VEL);
+%     else
+%         x_ref(4, :) = x0(4)-10*dt : -10*dt : x0(4)-10*dt*N_steps;
+%         x_ref(4, :) = max(x_ref(4, :), TARGET_VEL);
+%     end
+%     x_ref(1, :) = x0(1) + cumsum(x_ref(4, :)*dt);
+    x_ref = obtain_reference(x_opt_traj, ds, N_s, t, s, dt, N_steps);
     
     % Solve MPC problem
     if MODE == "LTV-MPC"
@@ -145,6 +146,7 @@ for i = 1:N_simulation
         slack_tyre(i) = slack_opt(4);
         
     else
+        tic
         % Solve the nonlinear MPC problem
         if MODEL == "KINEMATIC"
             if MODE == "MS-NMPC"
@@ -166,13 +168,13 @@ for i = 1:N_simulation
         
         exit_status(i) = ipopt_info.status;
         objective(i) = ipopt_info.objective;
-        cpu_time(i) = ipopt_info.cpu;
+        cpu_time(i) = toc;
         slack_n(i) = slack_mpc(2);
         slack_tyre(i) = slack_mpc(1);
     end
 
     if VISUALISE
-        visualise_mpc(x, x_opt, x_spline, y_spline, dl, MODEL)
+        visualise_mpc(x, x_opt, x_spline, y_spline, dl, MODEL, x_ref)
     end
     
     % Update vehicle model
@@ -184,9 +186,12 @@ for i = 1:N_simulation
         steer_queue = [steer_queue(2:end); x_opt(N_x)];        
     end
     
+    v_target = (u_opt(1) + u_opt(3)) / 2 * 225 + x_pred(4);
+    steer_target = (u_opt(2) + u_opt(4)) / 2;
+    
     for j = 1:10
-        [vel_rate, vel_pid_status] = pid_controller(vel_queue(1), x(4), vel_pid_settings, vel_pid_status);
-        [steer_rate, steer_pid_status] = pid_controller(steer_queue(1), x(7), steer_pid_settings, steer_pid_status);
+        [vel_rate, vel_pid_status] = pid_controller(v_target, x(4), vel_pid_settings, vel_pid_status);
+        [steer_rate, steer_pid_status] = pid_controller(steer_target, x(7), steer_pid_settings, steer_pid_status);
         x = integrate_cart_dyn(x, [vel_rate; steer_rate], dt/10);
     end
 
@@ -209,7 +214,7 @@ end
 %% Metrics
 
 slack_all = (slack_n(1:i-1)==0) & (slack_tyre(1:i-1)==0);
-friction_ellipse = (Fcr_list / (200*6.5330)).^2 + (Fx_list / 10.0).^2;
+friction_ellipse = (Fcr_list / (280*6.5330)).^2 + (Fx_list / 10.0).^2;
 
 COPY_FORMAT = true; 
 if COPY_FORMAT
