@@ -75,7 +75,7 @@ u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
 
 % Simulate time delay
-T_delay = 0.05;
+T_delay = 0.00;
 N_delay = round(T_delay / dt) + 1;
 vel_queue = zeros(N_delay, 1);
 steer_queue = zeros(N_delay, 1);
@@ -92,6 +92,7 @@ vel_pid_status = {0, 0};
 
 steer_pid_settings = {5.0, 0, 0, 0.8};
 steer_pid_status = {0, 0};
+
 
 %% Simulate MPC
 for i = 1:N_simulation
@@ -117,15 +118,15 @@ for i = 1:N_simulation
     end
     
     % Define new reference points
-%     if x_pred(4) < TARGET_VEL
-%         x_ref(4, :) = x0(4)+10*dt : 10*dt : x0(4)+10*dt*N_steps;
-%         x_ref(4, :) = min(x_ref(4, :), TARGET_VEL);
-%     else
-%         x_ref(4, :) = x0(4)-10*dt : -10*dt : x0(4)-10*dt*N_steps;
-%         x_ref(4, :) = max(x_ref(4, :), TARGET_VEL);
-%     end
-%     x_ref(1, :) = x0(1) + cumsum(x_ref(4, :)*dt);
-    x_ref = obtain_reference(x_opt_traj, ds, N_s, t, s, dt, N_steps);
+    if x_pred(4) < TARGET_VEL
+        x_ref(4, :) = x0(4)+10*dt : 10*dt : x0(4)+10*dt*N_steps;
+        x_ref(4, :) = min(x_ref(4, :), TARGET_VEL);
+    else
+        x_ref(4, :) = x0(4)-10*dt : -10*dt : x0(4)-10*dt*N_steps;
+        x_ref(4, :) = max(x_ref(4, :), TARGET_VEL);
+    end
+    x_ref(1, :) = x0(1) + cumsum(x_ref(4, :)*dt);
+%     x_ref = obtain_reference(x_opt_traj, ds, N_s, t, s, dt, N_steps);
     
     % Solve MPC problem
     if MODE == "LTV-MPC"
@@ -186,8 +187,10 @@ for i = 1:N_simulation
         steer_queue = [steer_queue(2:end); x_opt(N_x)];        
     end
     
-    v_target = (u_opt(1) + u_opt(3)) / 2 * 225 + x_pred(4);
+    v_target = (u_opt(1) + u_opt(3)) / 2;
     steer_target = (u_opt(2) + u_opt(4)) / 2;
+    v_hist(i) = v_target;
+    steer_hist(i) = steer_target;
     
     for j = 1:10
         [vel_rate, vel_pid_status] = pid_controller(v_target, x(4), vel_pid_settings, vel_pid_status);

@@ -64,6 +64,7 @@
     denom_vf2 = 1 / (1 + vf^2);
     denom_vr2 = 1 / (1 + vr^2);
     
+    K_vel = 1.6;
     K_steer = 5.0;
     
     % Partial derivatives
@@ -82,7 +83,7 @@
     mu_yd = -s_yd * k;
     mu_thetad = 1;
     
-    xd_xd = -Fcf_d * denom_vf2 * vf * sin(delta) * x_d_hat_d / (m * x_d_hat);
+    xd_xd = -K_vel - Fcf_d * denom_vf2 * vf * sin(delta) * x_d_hat_d / (m * x_d_hat);
     xd_yd = (Fcf_d * denom_vf2 * sin(delta) / x_d_hat + m * theta_d) / m;
     xd_thetad = (Fcf_d * denom_vf2 * lf  * sin(delta) / x_d_hat + m * y_d) / m;
     xd_delta = (-Fcf * cos(delta) - Fcf_d * sin(delta)) / m;

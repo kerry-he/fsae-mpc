@@ -26,7 +26,7 @@ function [f, Fcr] = f_curv_dyn(x, u, kappa)
     theta_d = x(6);
     delta   = x(7);
     
-    Fx      = u(1)*m;
+    a       = u(1);
     delta_d = u(2);    
     
     x_d_hat = x_d + 5*exp(-x_d/5);
@@ -52,13 +52,14 @@ function [f, Fcr] = f_curv_dyn(x, u, kappa)
     Fcf = Fzf * D * sin(C * atan(B*alpha_f - E*(B*alpha_f - atan(B*alpha_f))));
     Fcr = Fzr * D * sin(C * atan(B*alpha_r - E*(B*alpha_r - atan(B*alpha_r))));
     
+    K_vel = 1.6;
     K_steer = 5.0;
     
     % Populate matrix
     f = [(x_d * cos(mu) - y_d * sin(mu))*denom_nk;
          x_d * sin(mu) + y_d * cos(mu);
          theta_d - (x_d * cos(mu) - y_d * sin(mu))*denom_nk*k;
-         (Fx - Fcf*sin(delta) + m*y_d*theta_d) / m;
+         K_vel * (a - x_d) + (-Fcf*sin(delta) + m*y_d*theta_d) / m;
          (Fcr + Fcf*cos(delta) - m*x_d*theta_d) / m;
          (lf*Fcf*cos(delta) - lr*Fcr) / I;
          K_steer * (delta_d - delta)];
