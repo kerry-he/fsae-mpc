@@ -17,12 +17,12 @@ y_spline = make_spline_periodic(y);
 [x_spline, y_spline, dl, L] = arclength_reparam(x_spline, y_spline, 100, true);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
 
-[x_opt_traj, t, info, ds, N_s, slack] = dynamic_minimum_time_planner(x_spline, y_spline, dl, L);
-[x_pred, y_pred, ~] = curvilinear_to_cartesian(0:ds:ds*(N_s-1), ...
-    x_opt_traj(1:8:end), x_opt_traj(2:8:end), x_spline, y_spline, dl);
+% [x_opt_traj, t, info, ds, N_s, slack] = dynamic_minimum_time_planner(x_spline, y_spline, dl, L);
+% [x_pred, y_pred, ~] = curvilinear_to_cartesian(0:ds:ds*(N_s-1), ...
+%     x_opt_traj(1:8:end), x_opt_traj(2:8:end), x_spline, y_spline, dl);
 
 %% Setup MPC parameters
-MODE = "MS-NMPC";
+MODE = "LTV-MPC";
 MODEL = "DYNAMIC";
 VISUALISE = true;
 
@@ -81,7 +81,7 @@ hold on
 plot(lx, ly, "b*")
 
 %% Setup actuator controllers
-vel_pid_settings = {16000.0, 0, 0, 2000};
+vel_pid_settings = {16000.0, 0, 0, 2800};
 vel_pid_status = {0, 0};
 
 steer_pid_settings = {80.0, 0, 0, 0.8};
@@ -155,7 +155,7 @@ for i = 1:N_simulation
         exit_status(i) = ipopt_info.status;
         objective(i) = ipopt_info.objective;
         cpu_time(i) = ipopt_info.cpu;
-        slack_n(i) = slack_mpc(2);
+        slack_n(i) = slack_mpc(1);
         slack_tyre(i) = slack_mpc(1);
     end
 
@@ -183,7 +183,7 @@ for i = 1:N_simulation
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:N_x)';
-    
+
     if mod(i, 50) == 0
         display("Running iteration: " + i)
     end
@@ -196,7 +196,7 @@ end
 %% Metrics
 
 slack_all = (slack_n(1:i-1)==0) & (slack_tyre(1:i-1)==0);
-friction_ellipse = (Fcr_list / (200*6.5330)).^2 + (Fx_list / 10.0).^2;
+friction_ellipse = (Fcr_list / (280*9.163)).^2 + (Fx_list / 10.0).^2;
 
 COPY_FORMAT = true; 
 if COPY_FORMAT

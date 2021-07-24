@@ -12,7 +12,7 @@ function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_c
 %       A - Jacobian of vehicle model with respect to state variables
 
     % Define vehicle constants
-    m = 200;
+    m = 280;
     I = 200;
     lr = 0.6183;
     lf = 0.8672;
@@ -36,8 +36,8 @@ function [A, Fcr, Fcr_d, vr, denom_vr2, x_d_hat, x_d_hat_d, vf, denom_vf2] = A_c
     alpha_r = -atan((y_d - lr*theta_d) / x_d_hat);
     
     % Mass distribution
-    Fzf = m*g * lf / (lr+lf);
-    Fzr = m*g * lr / (lr+lf);
+    Fzf = m*g * lr / (lr+lf);
+    Fzr = m*g * lf / (lr+lf);
     
     % Pacejka magic formula
     B = 12.56;

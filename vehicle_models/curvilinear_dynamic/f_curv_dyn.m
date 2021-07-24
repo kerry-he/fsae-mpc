@@ -10,7 +10,7 @@ function [f, Fcr] = f_curv_dyn(x, u, kappa)
 %       f - Dynamic model equations
 
     % Define vehicle constants
-    m = 200;
+    m = 280;
     I = 200;
     lr = 0.6183;
     lf = 0.8672;
@@ -40,8 +40,8 @@ function [f, Fcr] = f_curv_dyn(x, u, kappa)
     alpha_r = -atan((y_d - lr*theta_d) / x_d_hat);
     
     % Mass distribution
-    Fzf = m*g * lf / (lr+lf);
-    Fzr = m*g * lr / (lr+lf);
+    Fzf = m*g * lr / (lr+lf);
+    Fzr = m*g * lf / (lr+lf);
     
     % Pacejka magic formula
     B = 12.56;
