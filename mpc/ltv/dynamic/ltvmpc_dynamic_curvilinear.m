@@ -42,11 +42,11 @@ function [u_opt, x_opt, QP, exitflag, fval, slack_opt] = ltvmpc_dynamic_curvilin
     
     % Solve QP problem
 %     options = qpOASES_options('MPC');
-%     
+    
 %     if QP == 0
-%         [QP, u_opt] = qpOASES_sequence('i', H, f, xA, u_lb, u_ub, lbA, ubA, options);
+%         [QP, u_opt, fval, exitflag, iter, lambda, auxOutput] = qpOASES_sequence('i', H, f, xA, u_lb, u_ub, lbA, ubA, options);
 %     else
-%         u_opt = qpOASES_sequence('m', QP, H, f, xA, u_lb, u_ub, lbA, ubA, options);
+%         [u_opt, fval, exitflag, iter, lambda, auxOutput] = qpOASES_sequence('m', QP, H, f, xA, u_lb, u_ub, lbA, ubA, options);
 %     end
     
     [u_opt, fval, exitflag, iter, lambda, auxOutput] = qpOASES(H, f, xA, u_lb, u_ub, lbA, ubA);

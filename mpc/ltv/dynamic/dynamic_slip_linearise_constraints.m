@@ -2,8 +2,6 @@ function [A, lb, ub] = dynamic_slip_linearise_constraints(A_bar, B_bar, d_bar, x
 %LINEARISE_CONSTRAINTS Summary of this function goes here
 %   Detailed explanation goes here
 
-    ac_max = 9.1630;
-    al_max = 10.0; 
     lr = 0.6183;    
     lf = 0.8672;
 

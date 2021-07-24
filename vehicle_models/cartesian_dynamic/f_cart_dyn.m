@@ -11,7 +11,11 @@ function f = f_cart_dyn(x, u)
 
     % Define vehicle constants
     m = 280;
+<<<<<<< HEAD
     I = 230;
+=======
+    I = 200;
+>>>>>>> main
     lr = 0.6183;
     lf = 0.8672;
     

@@ -42,7 +42,7 @@ function [x, t, info, ds, N_steps, slack] = dynamic_minimum_time_planner(x_splin
     options.lb = [repmat([-inf; -inf; 0; -inf; -inf; -0.4; -10.0; -0.4], N_steps, 1); 0; 0]; % Lower bound on optimization variable
     options.ub = [repmat([inf; inf; inf; inf; inf; 0.4; 10.0; 0.4], N_steps, 1); inf; inf]; % Upper bound on optimization variable
     options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.5], N_steps, 1); -inf*ones(N_steps, 1)]; % Lower bound on constraint function
-    options.cu = [zeros(N_x*N_steps, 1); repmat([0.5; inf], N_steps, 1); ones(N_steps, 1)]; % Upper bound on constraint function
+    options.cu = [zeros(N_x*N_steps, 1); repmat([0.5; inf], N_steps, 1); 0.75*ones(N_steps, 1)]; % Upper bound on constraint function
     
     % Set IPOPT options
 %     options.ipopt.print_level           = 0;
