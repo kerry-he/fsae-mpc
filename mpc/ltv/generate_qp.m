@@ -25,9 +25,18 @@ function [H, f, const] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_termin
     R_bar = spdiags([repmat(R(:), N_steps, 1); zeros(N_soft, 1)], 0, ...
         N_steps*N_u + N_soft, N_steps*N_u + N_soft);
     
+    X = zeros(N_u * N_steps + N_soft, N_x * N_steps);
+    for i = 2:N_steps
+        X((i - 1) * N_u + 1, (i - 2) * N_x + 4) = 1;
+        X((i - 1) * N_u + 2, (i - 2) * N_x + 7) = 1;
+    end
+    c = zeros(N_u * N_steps + N_soft, 1);
+    c(1) = x0(4);
+    c(2) = x0(7);
+    
     % Define QP parameters
-    H = 2 * (B_bar' * Q_bar * B_bar + R_bar);
-    f = 2 * B_bar' * Q_bar * (A_bar * x0 + d_bar - x_ref(:));
+    H = 2 * (B_bar' * Q_bar * B_bar + R_bar - R_bar*X*B_bar - B_bar'*X'*R_bar + B_bar'*X'*R_bar*X*B_bar);
+    f = 2 * B_bar' * Q_bar * (A_bar * x0 + d_bar - x_ref(:)) - 2 * (R_bar - R_bar*X*B_bar)' * (X*(A_bar*x0 + d_bar) - c);
     f(end-N_soft+1:end) = R_soft;
     
     const = (A_bar * x0 + d_bar - x_ref(:))'*Q_bar*(A_bar * x0 + d_bar - x_ref(:));

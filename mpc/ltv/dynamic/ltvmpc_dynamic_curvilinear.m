@@ -25,13 +25,13 @@ function [u_opt, x_opt, QP, exitflag, fval, slack_opt] = ltvmpc_dynamic_curvilin
 
     x_lb = x_lb(:); x_ub = x_ub(:);
 
-    u_lb = [repmat([-10; -0.4], N_steps, 1); 0; 0; 0; 0];
-    u_ub = [repmat([10; 0.4], N_steps, 1); inf; inf; inf; inf];
+    u_lb = [repmat([0; -0.4], N_steps, 1); 0; 0; 0; 0];
+    u_ub = [repmat([inf; 0.4], N_steps, 1); inf; inf; inf; inf];
 
     % Define cost weights
-    Q = [5; 250; 2000; 10; 10; 0; 40];
+    Q = [5; 250; 2000; 0; 0; 0; 0];
     Q_terminal = Q * 10;
-    R = [10, 10];
+    R = [0.1, 500];
     R_soft = [1e8; 1e6; 1e6; 1e5];
         
     % Define QP problem
