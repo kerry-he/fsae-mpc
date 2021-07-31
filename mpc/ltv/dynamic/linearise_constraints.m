@@ -45,18 +45,18 @@ function [A, lb, ub] = linearise_constraints(A_bar, B_bar, d_bar, x_lin, u_lin, 
         g0 = [K_steer * (u(2) - x(7));
               x(2);
               x(2);
-              -atan(vr);
               x(7) - atan(vf);
               -atan(vr);
-              x(7) - atan(vf)];            
+              x(7) - atan(vf);
+              -atan(vr)];            
 
         C = [0, 0, 0, 0, 0, 0, -K_steer;
              0, 1, 0, 0, 0, 0, 0;
              0, 1, 0, 0, 0, 0, 0;
-             0, 0, 0, denom_vr2*vr*x_d_hat_d/x_d_hat, -denom_vr2/x_d_hat, denom_vr2*lr/x_d_hat, 0;
              0, 0, 0, denom_vf2*vf*x_d_hat_d/x_d_hat, -denom_vf2/x_d_hat, -denom_vf2*lf/x_d_hat, 1;
              0, 0, 0, denom_vr2*vr*x_d_hat_d/x_d_hat, -denom_vr2/x_d_hat, denom_vr2*lr/x_d_hat, 0;
-             0, 0, 0, denom_vf2*vf*x_d_hat_d/x_d_hat, -denom_vf2/x_d_hat, -denom_vf2*lf/x_d_hat, 1];
+             0, 0, 0, denom_vf2*vf*x_d_hat_d/x_d_hat, -denom_vf2/x_d_hat, -denom_vf2*lf/x_d_hat, 1;             
+             0, 0, 0, denom_vr2*vr*x_d_hat_d/x_d_hat, -denom_vr2/x_d_hat, denom_vr2*lr/x_d_hat, 0];
 
         D = [0, K_steer;
              0, 0;
@@ -93,8 +93,8 @@ function [A, lb, ub] = linearise_constraints(A_bar, B_bar, d_bar, x_lin, u_lin, 
                                         repmat([0, 0, 0, 1], N_tyre, 1)], N_steps, 1);];
     
     const = g_bar + C_bar * (A_bar*x0 + d_bar - x_lin(:)) - D_bar*u_lin(:);
-    lb = repmat([-0.8; -inf;  -0.75; -inf; -inf; -0.1; -0.1; -inf(N_tyre, 1)], N_steps, 1) - const;
-    ub = repmat([0.8;   0.75;  inf;   0.1;  0.1;  inf;  inf; ones(N_tyre, 1)], N_steps, 1) - const;
+    lb = repmat([-0.8; -1e19;  -0.75; -1e19; -1e19; -0.1; -0.1; -ones(N_tyre, 1)*1e19], N_steps, 1) - const;
+    ub = repmat([0.8;   0.75;  1e19;   0.1;  0.1;  1e19;  1e19; ones(N_tyre, 1)], N_steps, 1) - const;
     
 
 end

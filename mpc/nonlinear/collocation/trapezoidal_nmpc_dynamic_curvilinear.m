@@ -32,7 +32,7 @@ function [x, slack, info] = trapezoidal_nmpc_dynamic_curvilinear(x0, x_ref, kapp
     % Defining cost weights
     Q = [5; 250; 2000; 0; 0; 0; 0];
     Q_terminal = 10;
-    R = [10; 10];
+    R = [1; 500];
     
     Q_factor = [1/2, ones(1, N_steps-3), (1+Q_terminal)/2, Q_terminal/2];
     R_factor = [1/2, ones(1, N_steps-2), 1/2];
@@ -49,7 +49,7 @@ function [x, slack, info] = trapezoidal_nmpc_dynamic_curvilinear(x0, x_ref, kapp
     options.auxdata = { x0, x_ref, kappa, Q_bar, N_x, N_u, N_steps, dt };
 
     % The constraint functions are bounded from below by zero.
-    options.lb = [repmat([-inf; -inf; -inf; inf; -inf; -inf; -inf; 0; -0.4], N_steps, 1); 0; 0]; % Lower bound on optimization variable
+    options.lb = [repmat([-inf; -inf; -inf; -inf; -inf; -inf; -inf; 0; -0.4], N_steps, 1); 0; 0]; % Lower bound on optimization variable
     options.ub = [repmat([inf; inf; inf; inf; inf; inf; inf; inf; 0.4], N_steps, 1); 0.05; inf]; % Upper bound on optimization variable
     options.cl = [zeros(N_x*N_steps, 1); repmat([-inf; -0.75], N_steps-1, 1); -inf(N_steps, 1); -ones(N_steps, 1) * 0.8]; % Lower bound on constraint function
     options.cu = [zeros(N_x*N_steps, 1); repmat([0.75; inf], N_steps-1, 1); ones(N_steps, 1); ones(N_steps, 1) * 0.8]; % Upper bound on constraint function

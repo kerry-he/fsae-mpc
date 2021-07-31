@@ -14,15 +14,15 @@ filename = "data/fsg2019.csv";
 % Generate spline
 x_spline = make_spline_periodic(x);
 y_spline = make_spline_periodic(y);
-[x_spline, y_spline, dl, L] = arclength_reparam(x_spline, y_spline, 100, true);
+[x_spline, y_spline, dl, L] = arclength_reparam(x_spline, y_spline, 50, true);
 kappa = @(s) interpolate_curvature(s, x_spline, y_spline, dl); 
 
-% [x_opt_traj, t, info, ds, N_s, slack] = dynamic_minimum_time_planner(x_spline, y_spline, dl, L);
-% [x_pred, y_pred, ~] = curvilinear_to_cartesian(0:ds:ds*(N_s-1), ...
-%     x_opt_traj(1:8:end), x_opt_traj(2:8:end), x_spline, y_spline, dl);
+[x_opt_traj, t, info, ds, N_s, slack] = dynamic_minimum_time_planner(x_spline, y_spline, dl, L);
+[x_pred, y_pred, ~] = curvilinear_to_cartesian(0:ds:ds*(N_s-1), ...
+    x_opt_traj(1:8:end), x_opt_traj(2:8:end), x_spline, y_spline, dl);
 
 %% Setup MPC parameters
-MODE = "C-NMPC";
+MODE = "LTV-MPC";
 MODEL = "DYNAMIC";
 VISUALISE = true;
 
@@ -43,8 +43,8 @@ u_ref = zeros(N_u, N_steps);
 
 % Define MPC initial guess
 x_mpc = [zeros(N_x, N_steps); zeros(N_u, N_steps)];
-x_mpc(1, :) = 10 * (dt:dt:dt*N_steps).^2/2; % Quadratic arc length 
-x_mpc(4, :) = 10*dt:10*dt:10*dt*N_steps; % Linear velocity
+x_mpc(1, :) = 10*((dt:dt:dt*N_steps) + (exp(-1.6*(dt:dt:dt*N_steps)) - 1)/1.6); % Quadratic arc length 
+x_mpc(4, :) = 10*(1 - exp(-1.6 * (dt:dt:dt*N_steps))); % Linear velocity
 x_mpc(end-1, :) = 10; % Constant acceleration
 
 if MODE == "C-NMPC"
@@ -56,11 +56,13 @@ u_opt = x_mpc(end-N_u+1:end, :);
 
 ipopt_info = [];
 QP = 0;
+exitflag = 0;
 
 %% Setup simulation parameters
 % Define simulation vehicle model initial conditions
 N_simulation = 1000;
 x = zeros(7, 1);
+x(4) = 1;
 
 % Preallocate metric vectors
 n_list = zeros(N_simulation, 1);
@@ -75,7 +77,7 @@ u_opt_history = zeros(N_simulation, N_u);
 x_opt_history = zeros(N_simulation, N_x);
 
 % Simulate time delay
-T_delay = 0.00;
+T_delay = 0.2;
 N_delay = round(T_delay / dt) + 1;
 vel_queue = zeros(N_delay, 1);
 steer_queue = zeros(N_delay, 1);
@@ -126,10 +128,18 @@ for i = 1:N_simulation
         x_ref(4, :) = max(x_ref(4, :), TARGET_VEL);
     end
     x_ref(1, :) = x0(1) + cumsum(x_ref(4, :)*dt);
-%     x_ref = obtain_reference(x_opt_traj, ds, N_s, t, s, dt, N_steps);
+    x_ref = obtain_reference(x_opt_traj, ds, N_s, t, s, dt, N_steps);
     
     % Solve MPC problem
     if MODE == "LTV-MPC"
+        if exitflag == -2
+            x_opt = x_ref;
+            u_opt = x_ref([4; 7], :);
+            
+            QP = 0;
+        end
+        
+        
         % Solve linear time varying MPC problem
         tic
         if MODEL == "KINEMATIC"
@@ -187,20 +197,21 @@ for i = 1:N_simulation
         steer_queue = [steer_queue(2:end); x_opt(N_x)];        
     end
     
-    v_target = (u_opt(1) + u_opt(3)) / 2;
-    steer_target = (u_opt(2) + u_opt(4)) / 2;
+    v_target = u_opt(1);
+    steer_target = u_opt(2);
     v_hist(i) = v_target;
     steer_hist(i) = steer_target;
-    
+        
     for j = 1:10
         [vel_rate, vel_pid_status] = pid_controller(v_target, x(4), vel_pid_settings, vel_pid_status);
         [steer_rate, steer_pid_status] = pid_controller(steer_target, x(7), steer_pid_settings, steer_pid_status);
         x = integrate_cart_dyn(x, [vel_rate; steer_rate], dt/10);
     end
-
+    
     [~, Fcr] = f_curv_dyn(x, [vel_rate; steer_rate], kappa);
     Fcr_list(i) = Fcr;
-    Fx_list(i) = u_opt(1);
+    Fx_list(i) = 1.6*(u_opt(1) - x_opt(4));        
+
     x_history(i, :) = x';
     u_opt_history(i, :) = u_opt(1:2)';
     x_opt_history(i, :) = x_opt(1:N_x)';

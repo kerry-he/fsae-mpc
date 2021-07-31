@@ -27,7 +27,7 @@ function [A_bar, B_bar, d_bar] = sequential_integration(A, B, d, dt)
     
     B_bar = zeros(N_x*N_steps, N_u*N_steps);
     for i = 1:N_steps
-        B_bar((i - 1)*N_x + 1:i*N_x, (i - 1)*N_u + 1:i*N_u) = B(:, :, 1);
+        B_bar((i - 1)*N_x + 1:i*N_x, (i - 1)*N_u + 1:i*N_u) = B(:, :, i);
         
         for j = i + 1:N_steps
             B_bar((j - 1)*N_x + 1:j*N_x, (i - 1)*N_u + 1:i*N_u) = A(:, :, j) * ...
