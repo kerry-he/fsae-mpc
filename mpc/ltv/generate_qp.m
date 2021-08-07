@@ -33,10 +33,14 @@ function [H, f, const] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_termin
     c = zeros(N_u * N_steps + N_soft, 1);
     c(1) = x0(4);
     c(2) = x0(7);
+    for i = 2:N_steps
+        c((i-1) * N_u + 1) = x0(4);
+        c((i-1) * N_u + 2) = x0(7);
+    end
     
     % Define QP parameters
-    H = 2 * (B_bar' * Q_bar * B_bar + R_bar - R_bar*X*B_bar - B_bar'*X'*R_bar + B_bar'*X'*R_bar*X*B_bar);
-    f = 2 * B_bar' * Q_bar * (A_bar * x0 + d_bar - x_ref(:)) - 2 * (R_bar - R_bar*X*B_bar)' * (X*(A_bar*x0 + d_bar) - c);
+    H = 2 * (B_bar' * Q_bar * B_bar + R_bar);
+    f = 2 * B_bar' * Q_bar * (A_bar * x0 + d_bar - x_ref(:)) - 2 * R_bar * c;
     f(end-N_soft+1:end) = R_soft;
     
     const = (A_bar * x0 + d_bar - x_ref(:))'*Q_bar*(A_bar * x0 + d_bar - x_ref(:));

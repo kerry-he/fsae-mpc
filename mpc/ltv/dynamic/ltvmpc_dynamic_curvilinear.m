@@ -39,7 +39,7 @@ function [u_opt, x_opt, QP, exitflag, fval, slack_opt] = ltvmpc_dynamic_curvilin
     [A_bar, B_bar, d_bar] = sequential_integration(A, B, d, dt);
     [B_bar, xA, lbA, ubA] = dynamic_state_constraints(A_bar, B_bar, d_bar, x0, x_lb, x_ub, state_idx, soft_idx, x_lin, u_lin, kappa);
     [H, f, const] = generate_qp(A_bar, B_bar, d_bar, x0, x_ref, Q, Q_terminal, R, R_soft);
-    
+
     % Solve QP problem
 %     options = qpOASES_options('MPC');
     
